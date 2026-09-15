@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% block title %}Journal{% endblock %}
+{% block body %}
+<h1>Journal</h1>
+<p class="sub">What you did, and when. Last 60 days.</p>
+
+{% for d in days %}
+<div class="card tight">
+  <div class="spread">
+    <strong>{{ d.date|dow }}</strong>
+    {% if d.session_id %}
+      <a href="/session/{{ d.session_id }}" class="pill on">Gym</a>
+    {% endif %}
+  </div>
+
+  {% if by_date.get(d.date) %}
+  <table style="margin-top:8px">
+    {% for x in by_date[d.date] %}
+    <tr>
+      <td>{{ x.name }}</td>
+      <td class="num" style="text-align:right;color:var(--mute)">
+        {{ x.sets }} × {{ x.top_reps }}{% if x.top_kg %} · {{ x.top_kg }} kg{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <div class="row" style="margin-top:10px">
+    {% if d.weight_kg %}<span class="pill">{{ d.weight_kg }} kg</span>{% endif %}
+    {% if d.steps %}<span class="pill">{{ '{:,}'.format(d.steps) }} steps</span>{% endif %}
+    {% if d.sleep_mins %}<span class="pill">{{ d.sleep_mins // 60 }}h{{ '%02d'|format(d.sleep_mins % 60) }} sleep</span>{% endif %}
+    {% if d.water_ml %}<span class="pill">{{ d.water_ml }} ml water</span>{% endif %}
+    {% if d.resting_hr %}<span class="pill">{{ d.resting_hr }} bpm</span>{% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card"><p class="sub">Nothing recorded yet.</p></div>
+{% endfor %}
+{% endblock %}

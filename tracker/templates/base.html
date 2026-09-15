@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>{% block title %}Tracker{% endblock %}</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#fff; --line:#e6e8ec; --ink:#0e1116; --mute:#6b7280;
+  --accent:#16a34a; --accent-soft:#dcfce7; --warn:#d97706; --radius:16px;
+  --shadow:0 1px 2px rgba(16,20,28,.05), 0 8px 24px -12px rgba(16,20,28,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0b0d10; --surface:#14181d; --line:#232a32; --ink:#eef1f5; --mute:#98a2b3;
+         --accent:#34d399; --accent-soft:#0f2f24;
+         --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.8); }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);
+  font:16px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;padding-bottom:84px}
+a{color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 8px}
+
+/* type */
+h1{font-size:26px;line-height:1.15;letter-spacing:-.02em;margin:0 0 2px;font-weight:650}
+h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);
+   font-weight:600;margin:26px 0 10px}
+.sub{color:var(--mute);font-size:14px;margin:0}
+.metric{font-size:52px;line-height:1;font-weight:680;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+.metric small{font-size:20px;font-weight:600;color:var(--mute);letter-spacing:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* surfaces */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card.tight{padding:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+
+/* bits */
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  background:var(--bg);border-radius:999px;padding:5px 11px;font-size:12.5px;color:var(--mute);
+  font-weight:500}
+.pill.on{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:650}
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0 8px}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:99px;
+  transition:width .4s ease}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:22px;font-weight:660;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--mute)}
+
+/* controls */
+button,.btn{font:inherit;font-weight:600;border-radius:12px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:13px 16px;cursor:pointer;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary,button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.block{width:100%}
+input,select,textarea{font:inherit;width:100%;background:var(--bg);color:var(--ink);
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+input[type=number]{font-variant-numeric:tabular-nums}
+label.lbl{display:block;font-size:12.5px;color:var(--mute);margin:0 0 5px;font-weight:500}
+
+/* exercise tiles */
+details.ex{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  margin-bottom:10px;overflow:hidden}
+details.ex[open]{border-color:var(--accent)}
+details.ex>summary{list-style:none;cursor:pointer;padding:14px;display:flex;gap:14px;
+  align-items:center}
+details.ex>summary::-webkit-details-marker{display:none}
+.thumb{width:52px;height:52px;border-radius:11px;flex:0 0 auto;background:var(--bg);
+  border:1px solid var(--line);object-fit:cover;display:grid;place-items:center;
+  font-size:19px;font-weight:700;color:var(--mute)}
+.ex-name{font-weight:620;line-height:1.25}
+.ex-meta{font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.sets{padding:0 14px 14px}
+.setrow{display:grid;grid-template-columns:24px 1fr 1fr 34px;gap:8px;align-items:center;
+  margin-top:8px}
+.setrow .n{font-size:13px;color:var(--mute);font-weight:600}
+.iconbtn{width:34px;height:34px;padding:0;border-radius:9px;display:grid;place-items:center;
+  font-size:17px;line-height:1;flex:0 0 auto;color:var(--mute);font-weight:500}
+.iconbtn:hover{color:var(--ink);border-color:var(--mute)}
+.addset{width:100%;margin-top:10px;padding:9px;font-size:13.5px;color:var(--mute);
+  border-style:dashed}
+#pool>details.ex{opacity:.62}
+#pool>details.ex:hover{opacity:1}
+.timebox{position:sticky;top:0;z-index:10;background:var(--bg);padding:8px 0 10px;
+  margin:-8px 0 6px}
+
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--line);font-size:14.5px}
+th{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+
+/* bottom tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);
+  border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);
+  padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:20}
+nav.tabs a{text-decoration:none;text-align:center;font-size:11px;color:var(--mute);
+  padding:4px 2px;border-radius:10px;font-weight:550}
+nav.tabs a b{display:block;font-size:18px;line-height:1.3;font-weight:400}
+nav.tabs a.on{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">{% block body %}{% endblock %}</div>
+<nav class="tabs">
+  {% set p = request.path %}
+  <a href="/"         class="{{ 'on' if p == '/' }}"><b>◎</b>Home</a>
+  <a href="/log"      class="{{ 'on' if p.startswith('/log') }}"><b>＋</b>Log</a>
+  <a href="/progress" class="{{ 'on' if p.startswith('/progress') }}"><b>◔</b>Progress</a>
+  <a href="/journal"  class="{{ 'on' if p.startswith('/journal') or p.startswith('/session') }}"><b>☰</b>Journal</a>
+  <a href="/checkin"  class="{{ 'on' if p.startswith('/checkin') }}"><b>✓</b>Check-in</a>
+  <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}"><b>⚙</b>Setup</a>
+</nav>
+</body>
+</html>

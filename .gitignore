@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+tracker/db_config.json
+garmin_config.json
+garmin_sync.log
+.idea/workspace.xml
+tracker/.env
+tracker/_backup_pre_merge/ 
+.idea/ 
+garmin_log.csv 

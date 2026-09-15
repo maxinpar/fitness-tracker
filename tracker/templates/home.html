@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% from "_chart.html" import line %}
+{% block title %}Tracker{% endblock %}
+{% block body %}
+
+<div class="card">
+  <p class="sub">Last weight</p>
+  {% if weight %}
+    <div class="metric">{{ '%.1f'|format(weight.weight_kg) }}<small> kg</small></div>
+    <p class="sub">{{ weight.date|dow }} &middot; target {{ TARGET_KG }} kg</p>
+    {% set pct = ((start - weight.weight_kg) / (start - TARGET_KG) * 100) %}
+    {% set pct = [[pct, 0]|max, 100]|min %}
+    <div class="bar"><i style="width:{{ '%.1f'|format(pct) }}%"></i></div>
+    <div class="spread">
+      <span class="sub"><strong class="num" style="color:var(--ink)">{{ '%.1f'|format(weight.weight_kg - TARGET_KG) }} kg</strong> to go</span>
+      <span class="sub num">{{ pct|round|int }}%</span>
+    </div>
+  {% else %}
+    <div class="metric">—</div><p class="sub">No weight recorded.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Weight, last 120 days</h2>
+  {{ line(trend, TARGET_KG, 160, ' kg') }}
+</div>
+
+{% if wk %}
+<div class="card">
+  <div class="spread"><h1 style="font-size:19px">Week {{ wk.week_no }}<span class="sub" style="font-weight:400"> of 12</span></h1>
+    <span class="pill on">{{ wk.block }}</span></div>
+  <p class="sub" style="margin:6px 0 12px">{{ wk.focus }}</p>
+  <div class="row">
+    <span class="pill">{{ planned|length }} exercises</span>
+    <span class="pill">{{ wk.sets_per_lift }} sets</span>
+    <span class="pill">~{{ wk.est_minutes }} min</span>
+    <span class="pill">{{ done|length }}/3 done</span>
+  </div>
+</div>
+{% else %}
+<div class="card"><p class="sub">The programme runs 14 Sep to 6 Dec 2026.</p></div>
+{% endif %}
+
+<a class="btn primary block" href="/log" style="margin-bottom:10px">
+  Log a gym session{% if label %} — {{ SESSION_NAMES[label] }}{% endif %}
+</a>
+
+{% if sync_age is not none and sync_age > 2 %}
+<div class="card tight" style="border-color:var(--warn)">
+  <strong>Garmin has not synced for {{ sync_age }} days.</strong>
+  <p class="sub" style="margin-top:4px">Last day with steps: {{ sync_date|dow }}.
+     Steps, sleep and water are stale.</p>
+</div>
+{% endif %}
+
+<form class="card tight" method="post" action="/weigh">
+  <label class="lbl">Weigh in</label>
+  <div class="row" style="flex-wrap:nowrap">
+    <input type="number" step="0.1" name="weight_kg" placeholder="kg" required>
+    <input type="hidden" name="date" value="{{ today }}">
+    <button type="submit">Save</button>
+  </div>
+</form>
+{% endblock %}

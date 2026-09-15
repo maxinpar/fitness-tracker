@@ -1,0 +1,160 @@
+{% extends "base.html" %}{% block title %}Log session{% endblock %}
+{% macro tile(l, active) %}
+<details class="ex" data-ex="{{ l.id }}" data-permin="{{ (l.est_minutes / (l.target_sets or 1))|round(2) }}"
+         {{ 'open' if active and loop_first is not defined }}>
+  <summary>
+    {% if l.photo %}<img class="thumb" src="/static/exercises/{{ l.photo }}" alt="">
+    {% else %}<span class="thumb">{{ l.name[0] }}</span>{% endif %}
+    <span style="flex:1;min-width:0">
+      <span class="ex-name">{{ l.name }}</span><br>
+      <span class="ex-meta">
+        <span class="nsets">{{ l.sets }}</span> ×
+        {{ l.target_reps }}{% if l.suggested_kg %} · {{ l.suggested_kg }} kg{% else %} · bodyweight{% endif %}
+      </span>
+    </span>
+    <button type="button" class="iconbtn" data-move
+            title="{{ 'Remove from today' if active else 'Add to today' }}"
+      >{{ '×' if active else '+' }}</button>
+  </summary>
+  <div class="sets">
+    {% for s in range(1, l.sets + 1) %}
+    <div class="setrow">
+      <span class="n">{{ s }}</span>
+      <input type="number" inputmode="numeric" name="reps_{{ l.id }}_{{ s }}"
+             value="{{ l.default_reps or '' }}" {{ '' if active else 'disabled' }}
+             placeholder="{{ 'metres' if l.category == 'warmup' else 'reps' }}">
+      <input type="number" step="0.5" inputmode="decimal" name="kg_{{ l.id }}_{{ s }}"
+             value="{{ l.suggested_kg or '' }}" {{ '' if active else 'disabled' }}
+             placeholder="{{ 'seconds' if l.category == 'warmup' else 'kg' }}">
+      <button type="button" class="iconbtn" data-delset title="Remove this set">−</button>
+    </div>
+    {% endfor %}
+    <button type="button" class="addset" data-addset>+ Add a set</button>
+  </div>
+</details>
+{% endmacro %}
+{% block body %}
+
+<div class="spread">
+  <h1>Today's session</h1>
+  {% if wk and wk.split %}<span class="pill on">{{ SESSION_NAMES[label] }}</span>{% endif %}
+</div>
+<p class="sub">
+  {% if wk %}Week {{ wk.week_no }} · {{ wk.block }}
+  {% else %}Off-programme. Log whatever you did.{% endif %}
+  {% if wk and wk.split %}
+    · <a href="/log?label={{ 'B' if label == 'A' else 'A' }}" style="color:var(--accent)">
+      do {{ SESSION_NAMES['B' if label == 'A' else 'A'] }} instead</a>
+  {% endif %}
+</p>
+
+<form method="post" action="/log" style="margin-top:14px">
+  <input type="hidden" name="label" value="{{ label or '-' }}">
+
+  <div class="timebox">
+    <div class="card tight" style="margin:0">
+      <div class="spread">
+        <span><strong id="count">{{ planned|length }}</strong> <span class="sub">exercises</span></span>
+        <span class="pill on">~<span id="mins">{{ minutes }}</span> min</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card tight">
+    <label class="lbl">Date</label>
+    <input type="date" name="date" value="{{ today }}" required>
+  </div>
+
+  <div id="today">
+    {% for l in planned %}{{ tile(l, true) }}{% endfor %}
+  </div>
+
+  <h2>Add an exercise</h2>
+  <div id="pool">
+    {% for l in extra %}{{ tile(l, false) }}{% endfor %}
+  </div>
+
+  <div class="card tight" style="margin-top:16px">
+    <label class="lbl">Notes</label>
+    <textarea name="notes" rows="2" placeholder="Energy, niggles, anything"></textarea>
+  </div>
+  <button type="submit" class="primary block">Save session</button>
+</form>
+
+<p class="sub" style="margin-top:12px">
+  Everything is pre-filled. Change only what you did differently.
+  Use <strong>+</strong> and <strong>×</strong> to add or drop an exercise,
+  <strong>+ Add a set</strong> and <strong>−</strong> for sets.
+</p>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+function renumber(tile) {
+  const id = tile.dataset.ex;
+  $$('.setrow', tile).forEach((row, i) => {
+    $('.n', row).textContent = i + 1;
+    row.children[1].name = `reps_${id}_${i + 1}`;
+    row.children[2].name = `kg_${id}_${i + 1}`;
+  });
+  const n = $('.nsets', tile);
+  if (n) n.textContent = $$('.setrow', tile).length;
+}
+
+function enable(tile, on) {
+  $$('input', tile).forEach(i => i.disabled = !on);
+}
+
+function retotal() {
+  let mins = 0;
+  $$('#today > details.ex').forEach(t => {
+    mins += (parseFloat(t.dataset.permin) || 0) * $$('.setrow', t).length;
+  });
+  $('#mins').textContent = Math.round(mins);
+  $('#count').textContent = $$('#today > details.ex').length;
+}
+
+document.addEventListener('click', e => {
+  const move = e.target.closest('[data-move]');
+  if (move) {
+    e.preventDefault();
+    const tile = move.closest('details.ex');
+    const toToday = tile.parentElement.id === 'pool';
+    $(toToday ? '#today' : '#pool').appendChild(tile);
+    enable(tile, toToday);
+    tile.open = toToday;
+    move.textContent = toToday ? '×' : '+';
+    move.title = toToday ? 'Remove from today' : 'Add to today';
+    retotal();
+    return;
+  }
+
+  const add = e.target.closest('[data-addset]');
+  if (add) {
+    e.preventDefault();
+    const tile = add.closest('details.ex');
+    const rows = $$('.setrow', tile);
+    const copy = rows[rows.length - 1].cloneNode(true);
+    rows[rows.length - 1].after(copy);
+    renumber(tile);
+    retotal();
+    return;
+  }
+
+  const del = e.target.closest('[data-delset]');
+  if (del) {
+    e.preventDefault();
+    const tile = del.closest('details.ex');
+    if ($$('.setrow', tile).length > 1) {
+      del.closest('.setrow').remove();
+      renumber(tile);
+      retotal();
+    }
+  }
+});
+
+$$('#pool > details.ex').forEach(t => enable(t, false));
+retotal();
+</script>
+{% endblock %}

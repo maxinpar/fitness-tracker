@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% from "_chart.html" import line %}
+{% block title %}Progress{% endblock %}
+{% block body %}
+<h1>Progress</h1>
+
+<h2>Weight</h2>
+<div class="card">
+  {{ line(weight, TARGET_KG, 170, ' kg') }}
+  {% if weight|length > 1 %}
+  <div class="grid" style="margin-top:14px">
+    <div class="stat"><b class="num">{{ weight[-1][1] }} kg</b><span>Latest</span></div>
+    <div class="stat"><b class="num">{{ '%+.1f'|format(weight[-1][1] - weight[0][1]) }} kg</b><span>Since {{ weight[0][0] }}</span></div>
+    <div class="stat"><b class="num">{{ '%.1f'|format(weight[-1][1] - TARGET_KG) }} kg</b><span>To target</span></div>
+  </div>
+  {% endif %}
+</div>
+
+<h2>Exercises</h2>
+{% for name, rows in by_lift.items() %}
+<div class="card">
+  <div class="spread">
+    <strong>{{ name }}</strong>
+    <span class="sub num">top {{ rows[-1][1] }} kg</span>
+  </div>
+  {{ line(rows, None, 110, ' kg') }}
+</div>
+{% else %}
+<div class="card"><p class="sub">Log a few sessions and your lifts will chart here.</p></div>
+{% endfor %}
+{% endblock %}

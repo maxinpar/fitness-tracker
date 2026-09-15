@@ -1,0 +1,38 @@
+{# Reusable line chart. Pass: points (list of (label, value)), target (optional), height #}
+{% macro line(points, target=None, h=150, unit='') %}
+  {% if points|length > 1 %}
+  {% set vals = points|map(attribute=1)|map('float')|list %}
+  {% set lo = ([vals|min, target]|min if target else vals|min) - 0.4 %}
+  {% set hi = ([vals|max, target]|max if target else vals|max) + 0.4 %}
+  {% set span = (hi - lo) or 1 %}
+  <svg viewBox="0 0 320 100" preserveAspectRatio="none"
+       style="width:100%;height:{{ h }}px;display:block;overflow:visible">
+    <defs><linearGradient id="g{{ points|length }}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="var(--accent)" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    {% if target %}
+      {% set ty = 92 - (target - lo) / span * 84 %}
+      <line x1="0" y1="{{ ty }}" x2="320" y2="{{ ty }}" stroke="var(--warn)"
+            stroke-width="1" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+    {% endif %}
+    {% set pts = [] %}
+    {% for v in vals %}
+      {% set _ = pts.append('%.2f,%.2f'|format(loop.index0 / (vals|length - 1) * 320,
+                                               92 - (v - lo) / span * 84)) %}
+    {% endfor %}
+    <polygon fill="url(#g{{ points|length }})" points="0,100 {{ pts|join(' ') }} 320,100"/>
+    <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"
+              stroke-linecap="round" vector-effect="non-scaling-stroke"
+              points="{{ pts|join(' ') }}"/>
+    <circle r="3.5" fill="var(--accent)" vector-effect="non-scaling-stroke"
+            cx="320" cy="{{ '%.2f'|format(92 - (vals[-1] - lo) / span * 84) }}"/>
+  </svg>
+  <div class="spread" style="margin-top:6px">
+    <span class="sub num">{{ points[0][0] }}</span>
+    <span class="sub num">{{ points[-1][0] }} &middot; {{ vals[-1] }}{{ unit }}</span>
+  </div>
+  {% else %}
+  <p class="sub">Not enough data yet.</p>
+  {% endif %}
+{% endmacro %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}Session{% endblock %}
+{% block body %}
+{% if head %}
+<h1>{{ head.date|dow }}</h1>
+<p class="sub">
+  {% if head.label in SESSION_NAMES %}{{ SESSION_NAMES[head.label] }} &middot; {% endif %}
+  Week {{ head.week_no or '—' }}{% if head.notes %} &middot; {{ head.notes }}{% endif %}</p>
+<div class="card" style="margin-top:16px">
+<table>
+  <tr><th>Exercise</th><th>Set</th><th>Reps</th><th>kg</th></tr>
+  {% for r in rows %}
+  <tr><td>{{ r.name }}</td><td class="num">{{ r.set_no }}</td>
+      <td class="num">{{ r.reps }}</td><td class="num">{{ r.kg or '—' }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<div class="card"><p class="sub">Session not found.</p></div>{% endif %}
+<a class="btn block" href="/journal">Back to journal</a>
+{% endblock %}
