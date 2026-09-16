@@ -1,0 +1,182 @@
+/* Tracker — screen layer on top of industry.css.
+   The prototype carried these as inline styles; they live here so the Jinja
+   templates stay readable. Values come from the handoff — do not invent new ones. */
+
+body { background: var(--color-neutral-200); margin: 0; }
+a { color: var(--color-accent-700); }
+a:hover { color: var(--color-accent); }
+
+/* ── shell ─────────────────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh; display: flex; justify-content: center;
+  padding: 24px 16px 64px; background: var(--color-neutral-200);
+}
+.shell {
+  width: 100%; max-width: 520px; background: var(--color-bg);
+  padding: 18px 16px 22px; display: flex; flex-direction: column; gap: 14px;
+  align-self: flex-start;
+}
+.screen { display: flex; flex-direction: column; gap: 14px; }
+
+.masthead {
+  display: flex; align-items: baseline; gap: 10px;
+  border-bottom: 1px solid var(--color-divider); padding-bottom: 10px;
+}
+.masthead .brand {
+  font-family: var(--font-heading); font-weight: 600; font-size: 19px; letter-spacing: .02em;
+}
+.masthead .wk { font-size: 11px; }
+.masthead .today { font-size: 11px; margin-left: auto; }
+
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs .btn { font-size: 13px; }
+.tabs .btn:hover { background: var(--color-accent-100); }
+.tabs .btn[aria-current="page"] { color: var(--color-accent); }
+
+.toast {
+  border: 1px solid var(--color-accent); background: var(--color-accent-100);
+  color: var(--color-accent-800); padding: 8px 10px; font-size: 13px;
+}
+
+/* ── shared atoms ──────────────────────────────────────────────────────── */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.kicker-accent { margin: 0 0 6px; color: var(--color-accent-700); }
+.spread { display: flex; justify-content: space-between; align-items: baseline; }
+.tagrow { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.screen-head { border-bottom: 1px solid var(--color-divider); padding-bottom: 10px; }
+.screen-head .title {
+  font-family: var(--font-heading); font-weight: 600; font-size: 26px; line-height: 1;
+}
+.screen-head .sub { font-size: 12px; }
+
+.cta {
+  margin: 0; padding: 13px; font-size: 17px; letter-spacing: .04em;
+}
+
+/* Placeholder used until a real photo lands in static/exercises/. */
+.stripe {
+  background: repeating-linear-gradient(135deg,
+    var(--color-neutral-300) 0 5px, var(--color-neutral-200) 5px 10px);
+}
+.stripe-lg {
+  background: repeating-linear-gradient(135deg,
+    var(--color-neutral-300) 0 6px, var(--color-neutral-200) 6px 12px);
+}
+
+/* ── home ──────────────────────────────────────────────────────────────── */
+.hero { display: flex; flex-direction: column; gap: 8px; }
+.hero-row { display: flex; align-items: baseline; gap: 8px; }
+.hero-value {
+  font-family: var(--font-heading); font-weight: 600; font-size: 68px;
+  line-height: .86; letter-spacing: -.02em;
+}
+.hero-unit { font-size: 16px; }
+.hero-aside { font-size: 12px; margin-left: auto; text-align: right; line-height: 1.3; }
+.hero-bar { height: 8px; background: var(--color-neutral-200); border: 1px solid var(--color-divider); }
+.hero-bar > i { display: block; height: 100%; background: var(--color-accent); }
+.hero-foot { display: flex; justify-content: space-between; font-size: 12px; }
+
+.chart-axis {
+  display: flex; justify-content: space-between; font-size: 10px;
+  color: var(--color-neutral-600);
+}
+
+.garmin-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--color-divider);
+}
+.garmin-grid > div { padding: 8px 6px; border-right: 1px solid var(--color-divider); }
+.garmin-grid > div:last-child { border-right: 0; }
+.garmin-grid .v { font-size: 17px; }
+.garmin-grid .v small { font-size: 11px; }
+.garmin-grid .k { font-size: 9px; letter-spacing: .08em; }
+
+.weigh-row { display: flex; gap: 8px; }
+.weigh-row .input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.weigh-row .btn { flex: none; }
+
+/* ── log / gym mode ────────────────────────────────────────────────────── */
+.log-head { display: flex; align-items: flex-end; justify-content: space-between;
+  border-bottom: 1px solid var(--color-divider); padding-bottom: 10px; }
+
+.active-card { gap: 10px; border-color: var(--color-accent); padding: 12px; }
+.active-head { display: flex; gap: 10px; align-items: center; }
+.active-photo { width: 54px; height: 54px; flex: none; object-fit: cover; }
+.active-name {
+  font-family: var(--font-heading); font-weight: 600; font-size: 20px; line-height: 1.1;
+}
+.active-meta { font-size: 12px; }
+
+.setrow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.setrow .slabel { font-size: 12px; width: 22px; color: var(--color-neutral-600); }
+.stepper { flex: 1; display: flex; align-items: stretch; border: 1px solid var(--color-divider); }
+.stepper .btn { border: 0; width: 46px; height: 46px; font-size: 20px; }
+.stepper .btn.minus { border-right: 1px solid var(--color-divider); }
+.stepper .btn.plus  { border-left: 1px solid var(--color-divider); }
+.stepper .val { flex: 1; display: grid; place-items: center; font-size: 19px; }
+.stepper .val small { font-size: 11px; margin-left: 3px; }
+.setrow .drop { font-size: 18px; width: 28px; }
+
+.active-foot { display: flex; gap: 8px; }
+.active-foot .btn { flex: 1; min-height: 40px; }
+
+.tile { margin-bottom: 10px; }
+.tile > .btn {
+  width: 100%; justify-content: flex-start; gap: 10px; padding: 10px;
+  height: auto; text-align: left;
+}
+.tile > .btn:hover { background: var(--color-accent-100); }
+.tile.open > .btn { border-color: var(--color-accent); }
+.tile-photo {
+  width: 44px; height: 44px; flex: none; border: 1px solid var(--color-divider);
+  display: grid; place-items: center; object-fit: cover;
+  font: 8px/1.2 ui-monospace, monospace; color: var(--color-neutral-700); text-align: center;
+}
+.tile-text { flex: 1; min-width: 0; }
+.tile-name { display: block; font-size: 16px; line-height: 1.2; }
+.tile-meta { display: block; font-size: 11px; font-weight: 400; }
+.tile .tag { flex: none; }
+
+.pool { display: flex; gap: 6px; flex-wrap: wrap; }
+.pool .btn { font-size: 13px; }
+.pool .btn:hover { background: var(--color-accent-100); }
+
+/* ── progress ──────────────────────────────────────────────────────────── */
+.legend { display: flex; gap: 16px; font-size: 11px; color: var(--color-neutral-600); }
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.big-stat {
+  font-family: var(--font-heading); font-weight: 600; font-size: 34px; line-height: 1;
+}
+.session-bars { display: flex; gap: 4px; }
+.session-bars > i { flex: 1; height: 8px; background: var(--color-neutral-300); }
+.session-bars > i.on { background: var(--color-accent); }
+
+.photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.photo-grid figure { aspect-ratio: 3/4; display: grid; place-items: center; }
+.photo-grid figure.empty { border-style: dashed; }
+.photo-grid span {
+  font: 10px/1.4 ui-monospace, monospace; color: var(--color-neutral-700); text-align: center;
+}
+.photo-grid figure.empty span { color: var(--color-neutral-600); }
+
+/* ── journal ───────────────────────────────────────────────────────────── */
+.day-card { gap: 6px; margin-bottom: 10px; border-left: 2px solid var(--color-divider); }
+.day-card.gym { border-left-color: var(--color-accent); }
+.day-card .day { font-family: var(--font-heading); font-size: 17px; }
+.day-metrics { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.day-detail { font-size: 12px; }
+.foot-note { font-size: 11px; }
+
+/* ── programme / settings ──────────────────────────────────────────────── */
+.table td.n, .table td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.table tr.current { background: color-mix(in srgb, var(--color-accent) 7%, transparent); }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-grid .input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.btn-pair { display: flex; gap: 8px; }
+.btn-pair .btn { flex: 1; }
+
+/* Below 360px the four-up grids would crush; drop to two columns. */
+@media (max-width: 359px) {
+  .garmin-grid, .photo-grid { grid-template-columns: 1fr 1fr; }
+  .garmin-grid > div:nth-child(2) { border-right: 0; }
+}

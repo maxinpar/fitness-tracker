@@ -1,30 +1,93 @@
-{% extends "base.html" %}{% from "_chart.html" import line %}
+{% extends "base.html" %}{% from "_chart.html" import weight_vs_plan %}
 {% block title %}Progress{% endblock %}
 {% block body %}
-<h1>Progress</h1>
+<div class="screen">
 
-<h2>Weight</h2>
-<div class="card">
-  {{ line(weight, TARGET_KG, 170, ' kg') }}
-  {% if weight|length > 1 %}
-  <div class="grid" style="margin-top:14px">
-    <div class="stat"><b class="num">{{ weight[-1][1] }} kg</b><span>Latest</span></div>
-    <div class="stat"><b class="num">{{ '%+.1f'|format(weight[-1][1] - weight[0][1]) }} kg</b><span>Since {{ weight[0][0] }}</span></div>
-    <div class="stat"><b class="num">{{ '%.1f'|format(weight[-1][1] - TARGET_KG) }} kg</b><span>To target</span></div>
+  <div class="screen-head">
+    <div class="title">Progress</div>
+    <div class="sub text-muted">
+      {% if wk %}Week {{ wk.week_no }} of 12{% else %}Off programme{% endif %}
+      &middot; trends fill in as sessions land</div>
   </div>
-  {% endif %}
-</div>
 
-<h2>Exercises</h2>
-{% for name, rows in by_lift.items() %}
-<div class="card">
-  <div class="spread">
-    <strong>{{ name }}</strong>
-    <span class="sub num">top {{ rows[-1][1] }} kg</span>
+  <div class="card blueprint" style="gap:8px">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="spread">
+      <span class="card-kicker">Weight vs plan</span>
+      {% if actual|length %}
+        <span class="text-muted mono" style="font-size:11px">
+          {{ '%.1f'|format(actual[-1][1]) }} NOW &middot; {{ '%.1f'|format(TARGET_KG) }} BY 6 DEC</span>
+      {% endif %}
+    </div>
+    {{ weight_vs_plan(actual, plan_points) }}
   </div>
-  {{ line(rows, None, 110, ' kg') }}
+
+  <div class="two-up">
+    <div class="card blueprint" style="gap:6px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <span class="card-kicker">This week</span>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span class="big-stat">{{ sessions_done }}</span>
+        <span class="text-muted" style="font-size:13px">of 3 sessions</span>
+      </div>
+      <div class="session-bars">
+        <i class="{{ 'on' if sessions_done > 0 }}"></i>
+        <i class="{{ 'on' if sessions_done > 1 }}"></i>
+        <i class="{{ 'on' if sessions_done > 2 }}"></i>
+      </div>
+    </div>
+    <div class="card blueprint" style="gap:6px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <span class="card-kicker">Load vs plan</span>
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span class="big-stat">{{ load_pct_actual if load_pct_actual is not none else '—' }}{% if load_pct_actual is not none %}%{% endif %}</span>
+        {% if wk %}<span class="text-muted" style="font-size:12px">of the {{ wk.load_pct }}% target</span>{% endif %}
+      </div>
+      <div class="text-muted" style="font-size:11px">{{ load_note }}</div>
+    </div>
+  </div>
+
+  <div>
+    <h6 class="kicker-accent" style="margin:0 0 8px">Is each lift going up?</h6>
+    <table class="table">
+      <thead><tr><th>Exercise</th><th>Plan</th><th>Last</th><th>Best</th></tr></thead>
+      <tbody>
+        {% for r in lift_rows %}
+        <tr>
+          <td style="font-size:13px">{{ r.name }}</td>
+          <td class="text-muted" style="font-size:12px">{{ r.plan }}</td>
+          <td class="mono" style="font-size:12px">{{ r.last }}</td>
+          <td class="mono" style="font-size:12px">{{ r.best }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div>
+    <div class="spread" style="margin-bottom:8px">
+      <h6 class="kicker-accent" style="margin:0">Weekly photos</h6>
+      <span class="text-muted" style="font-size:11px">You copy them in. The app lines them up.</span>
+    </div>
+    <div class="photo-grid">
+      {% for p in photo_weeks %}
+        {% if p.have %}
+        <figure class="blueprint duotone stripe-lg">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span>WK {{ '%02d'|format(p.week) }}<br>photo</span>
+        </figure>
+        {% else %}
+        <figure class="blueprint empty">
+          <span>WK {{ '%02d'|format(p.week) }}<br>{{ p.due }}</span>
+        </figure>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="text-muted foot-note">
+    The Sunday check-in lives at <a href="/checkin">/checkin</a>.
+  </div>
+
 </div>
-{% else %}
-<div class="card"><p class="sub">Log a few sessions and your lifts will chart here.</p></div>
-{% endfor %}
 {% endblock %}

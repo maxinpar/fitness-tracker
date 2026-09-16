@@ -1,63 +1,187 @@
-{% extends "base.html" %}{% from "_chart.html" import line %}
+{% extends "base.html" %}{% from "_chart.html" import weight_line %}
 {% block title %}Tracker{% endblock %}
 {% block body %}
+<div class="screen">
 
-<div class="card">
-  <p class="sub">Last weight</p>
-  {% if weight %}
-    <div class="metric">{{ '%.1f'|format(weight.weight_kg) }}<small> kg</small></div>
-    <p class="sub">{{ weight.date|dow }} &middot; target {{ TARGET_KG }} kg</p>
-    {% set pct = ((start - weight.weight_kg) / (start - TARGET_KG) * 100) %}
-    {% set pct = [[pct, 0]|max, 100]|min %}
-    <div class="bar"><i style="width:{{ '%.1f'|format(pct) }}%"></i></div>
+  {# ── weight hero: bare on the ground, not a card ───────────────────────── #}
+  <div class="hero">
     <div class="spread">
-      <span class="sub"><strong class="num" style="color:var(--ink)">{{ '%.1f'|format(weight.weight_kg - TARGET_KG) }} kg</strong> to go</span>
-      <span class="sub num">{{ pct|round|int }}%</span>
+      <h6 class="kicker-accent" style="margin:0">Last weight</h6>
+      {% if on_track is not none %}
+        <span class="tag {{ 'tag-accent' if on_track else 'tag-neutral' }}">
+          {{ 'On track' if on_track else 'Behind plan' }}</span>
+      {% endif %}
     </div>
-  {% else %}
-    <div class="metric">—</div><p class="sub">No weight recorded.</p>
+    {% if weight %}
+      {% set kg = weight.weight_kg|float %}
+      <div class="hero-row">
+        <span class="hero-value">{{ '%.1f'|format(kg) }}</span>
+        <span class="hero-unit text-muted">kg</span>
+        <span class="hero-aside text-muted">
+          {{ weight.date|dow }}<br>target {{ '%.1f'|format(TARGET_KG) }} kg</span>
+      </div>
+      {% set pct = [[((start - kg) / (start - TARGET_KG) * 100), 0]|max, 100]|min %}
+      <div class="hero-bar"><i style="width:{{ '%.0f'|format(pct) }}%"></i></div>
+      <div class="hero-foot">
+        <span><strong class="mono">{{ '%.1f'|format([kg - TARGET_KG, 0]|max) }} kg</strong>
+          <span class="text-muted">to go</span></span>
+        <span class="text-muted mono">{{ '%.0f'|format(pct) }}%</span>
+      </div>
+    {% else %}
+      <div class="hero-row"><span class="hero-value">&mdash;</span></div>
+      <div class="hero-foot"><span class="text-muted">No weight recorded yet.</span></div>
+    {% endif %}
+  </div>
+
+  {# ── 120-day trend ─────────────────────────────────────────────────────── #}
+  <div class="card blueprint" style="gap:6px">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="spread">
+      <span class="card-kicker">Weight &middot; 120 days</span>
+      {% if trend|length > 1 %}
+        <span class="text-muted mono" style="font-size:11px">
+          {{ '%.1f'|format(trend[0][1]) }} &rarr; {{ '%.1f'|format(trend[-1][1]) }}</span>
+      {% endif %}
+    </div>
+    {{ weight_line(trend, TARGET_KG) }}
+  </div>
+
+  {# ── today ─────────────────────────────────────────────────────────────── #}
+  {% if wk %}
+  {# ── the week ─────────────────────────────────────────────────────────── #}
+  {% if week_days %}
+  <div class="card blueprint" style="gap:8px">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="card-head">
+      <span class="card-kicker">This week</span>
+      <span class="mono text-muted" style="font-size:12px">
+        {{ sessions_done }} of 3 done</span>
+    </div>
+
+    <div class="week-strip">
+      {% for d in week_days %}
+      <div class="wd wd-{{ d.status }}{% if d.is_today %} wd-now{% endif %}">
+        <span class="wd-day mono">{{ d.label|upper }}</span>
+        <span class="wd-num mono">{{ '%02d'|format(d.day) }}</span>
+        <span class="wd-mark">
+          {%- if d.status == 'done' %}&check;
+          {%- elif d.status == 'missed' %}&times;
+          {%- elif d.status == 'golf' %}&bull;
+          {%- elif d.gym %}&mdash;
+          {%- endif -%}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mono text-muted" style="font-size:12px">
+      {%- if next_gym and next_gym.is_today -%}
+        GYM TODAY &middot; {{ planned|length }} EXERCISES &middot; ~{{ est_minutes }} MIN
+      {%- elif next_gym -%}
+        NEXT GYM: {{ next_gym.label|upper }} {{ next_gym.day }} &middot;
+        {{ planned|length }} EXERCISES &middot; ~{{ est_minutes }} MIN
+      {%- else -%}
+        NO GYM DAYS LEFT THIS WEEK
+      {%- endif -%}
+    </div>
+    <div class="text-muted" style="font-size:11px">
+      Gym Monday, Tuesday, Thursday. Golf at the weekend.</div>
+  </div>
   {% endif %}
-</div>
 
-<div class="card">
-  <h2 style="margin-top:0">Weight, last 120 days</h2>
-  {{ line(trend, TARGET_KG, 160, ' kg') }}
-</div>
-
-{% if wk %}
-<div class="card">
-  <div class="spread"><h1 style="font-size:19px">Week {{ wk.week_no }}<span class="sub" style="font-weight:400"> of 12</span></h1>
-    <span class="pill on">{{ wk.block }}</span></div>
-  <p class="sub" style="margin:6px 0 12px">{{ wk.focus }}</p>
-  <div class="row">
-    <span class="pill">{{ planned|length }} exercises</span>
-    <span class="pill">{{ wk.sets_per_lift }} sets</span>
-    <span class="pill">~{{ wk.est_minutes }} min</span>
-    <span class="pill">{{ done|length }}/3 done</span>
+  <div class="card blueprint" style="gap:8px">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="spread">
+      <span class="card-kicker">Today</span>
+      <span class="text-muted" style="font-size:11px">
+        session {{ next_session_no }} of 3 this week</span>
+    </div>
+    <div style="font-family:var(--font-heading);font-weight:600;font-size:23px;line-height:1.1">
+      {% if wk.split and label %}{{ label }} &middot; {{ SESSION_NAMES[label] }}{% else %}Full-body{% endif %}
+      &middot; {{ wk.block }}
+    </div>
+    <div class="tagrow">
+      <span class="tag tag-neutral">{{ planned|length }} exercises</span>
+      <span class="tag tag-neutral">{{ wk.sets_per_lift }} sets</span>
+      <span class="tag tag-neutral">~{{ est_minutes }} min</span>
+      <span class="tag tag-neutral">{{ wk.load_pct }}% load</span>
+    </div>
   </div>
-</div>
-{% else %}
-<div class="card"><p class="sub">The programme runs 14 Sep to 6 Dec 2026.</p></div>
-{% endif %}
-
-<a class="btn primary block" href="/log" style="margin-bottom:10px">
-  Log a gym session{% if label %} — {{ SESSION_NAMES[label] }}{% endif %}
-</a>
-
-{% if sync_age is not none and sync_age > 2 %}
-<div class="card tight" style="border-color:var(--warn)">
-  <strong>Garmin has not synced for {{ sync_age }} days.</strong>
-  <p class="sub" style="margin-top:4px">Last day with steps: {{ sync_date|dow }}.
-     Steps, sleep and water are stale.</p>
-</div>
-{% endif %}
-
-<form class="card tight" method="post" action="/weigh">
-  <label class="lbl">Weigh in</label>
-  <div class="row" style="flex-wrap:nowrap">
-    <input type="number" step="0.1" name="weight_kg" placeholder="kg" required>
-    <input type="hidden" name="date" value="{{ today }}">
-    <button type="submit">Save</button>
+  {% else %}
+  <div class="card blueprint" style="gap:8px">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <span class="card-kicker">Today</span>
+    <div class="text-muted" style="font-size:13px">
+      The programme runs 14 Sep to 6 Dec 2026. No active week today.</div>
   </div>
-</form>
+  {% endif %}
+
+  {# ── the one action ────────────────────────────────────────────────────── #}
+  <a class="btn btn-primary btn-block blueprint cta" href="/log">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    {{ 'CONTINUE THE SESSION' if session_started else 'LOG A GYM SESSION' }}
+  </a>
+
+  {# ── Garmin strip ──────────────────────────────────────────────────────── #}
+  {% if garmin %}
+  <div>
+    <div class="garmin-grid">
+      <div>
+        <div class="v mono">{{ '{:,}'.format(garmin.steps) if garmin.steps else '—' }}</div>
+        <div class="k text-muted">STEPS</div>
+      </div>
+      <div>
+        <div class="v mono">
+          {%- if garmin.sleep_mins -%}
+            {{ garmin.sleep_mins // 60 }}h{{ '%02d'|format(garmin.sleep_mins % 60) }}
+          {%- else -%}—{%- endif -%}
+        </div>
+        <div class="k text-muted">SLEEP</div>
+      </div>
+      <div>
+        <div class="v mono">
+          {%- if garmin.water_ml -%}
+            {{ '%.1f'|format(garmin.water_ml / 1000) }}<small>L</small>
+          {%- else -%}—{%- endif -%}
+        </div>
+        <div class="k text-muted">WATER</div>
+      </div>
+      <div>
+        <div class="v mono">{{ garmin.resting_hr or '—' }}</div>
+        <div class="k text-muted">RHR</div>
+      </div>
+    </div>
+    <div class="text-muted" style="font-size:11px;margin-top:5px">
+      Garmin, {{ garmin.date|dow }}{% if sync_age is not none and sync_age <= 2 %} &middot; synced 08:00{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# The sync is silent when it breaks. Say so here, or it goes unnoticed. #}
+  {% if sync_age is none or sync_age > 2 %}
+  <div class="card blueprint" style="gap:4px;border-color:var(--color-accent)">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <span class="card-kicker">Garmin</span>
+    {% if sync_age is none %}
+      <div style="font-size:13px">Garmin has never synced. Run <code>tracker/garmin_reauth.bat</code>.</div>
+    {% else %}
+      <div style="font-size:13px">Last synced {{ sync_date|dow }} &mdash; {{ sync_age }} days ago.
+        The token has probably expired. Run <code>tracker/garmin_reauth.bat</code>.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── weigh in ──────────────────────────────────────────────────────────── #}
+  <form class="card blueprint" style="gap:8px" method="post" action="/weigh">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <span class="card-kicker">Weigh in</span>
+    <div class="weigh-row">
+      <input class="input" type="number" step="0.1" min="40" max="200"
+             name="weight_kg" placeholder="kg" required>
+      <input type="hidden" name="date" value="{{ today }}">
+      <button class="btn btn-secondary" type="submit">Save</button>
+    </div>
+  </form>
+
+</div>
 {% endblock %}

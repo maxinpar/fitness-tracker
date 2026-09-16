@@ -1,0 +1,48 @@
+/* Week strip. Seven cells, hairline dividers, square — same language as the
+   rest of the Industry layer. Gym days carry weight; rest days recede. */
+
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--color-divider);
+}
+
+.week-strip .wd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 2px 6px;
+  border-right: 1px solid var(--color-divider);
+  min-height: 58px;
+}
+.week-strip .wd:last-child { border-right: 0; }
+
+.wd-day {
+  font-size: 9px;
+  letter-spacing: .08em;
+  color: var(--color-neutral-600);
+}
+.wd-num { font-size: 15px; line-height: 1.1; }
+.wd-mark { font-size: 13px; line-height: 1; color: var(--color-neutral-500); }
+
+/* Rest and golf days sit back. */
+.wd-rest, .wd-golf { background: var(--color-neutral-200); }
+.wd-rest .wd-num, .wd-golf .wd-num { color: var(--color-neutral-600); }
+.wd-golf .wd-mark { color: var(--color-accent-700); }
+
+/* Gym days that are still to come. */
+.wd-todo .wd-num { color: var(--color-text); font-weight: 600; }
+
+/* Done. */
+.wd-done { background: var(--color-accent-100); }
+.wd-done .wd-num { color: var(--color-accent-800); font-weight: 600; }
+.wd-done .wd-mark { color: var(--color-accent-700); }
+
+/* Missed — stated, not shouted. */
+.wd-missed .wd-num { color: var(--color-neutral-500); }
+.wd-missed .wd-mark { color: var(--color-neutral-500); }
+
+/* Today, whatever else it is. */
+.wd-now { box-shadow: inset 0 0 0 2px var(--color-accent); }
+.wd-now .wd-day { color: var(--color-accent-700); }

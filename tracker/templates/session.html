@@ -1,19 +1,42 @@
 {% extends "base.html" %}{% block title %}Session{% endblock %}
 {% block body %}
-{% if head %}
-<h1>{{ head.date|dow }}</h1>
-<p class="sub">
-  {% if head.label in SESSION_NAMES %}{{ SESSION_NAMES[head.label] }} &middot; {% endif %}
-  Week {{ head.week_no or '—' }}{% if head.notes %} &middot; {{ head.notes }}{% endif %}</p>
-<div class="card" style="margin-top:16px">
-<table>
-  <tr><th>Exercise</th><th>Set</th><th>Reps</th><th>kg</th></tr>
-  {% for r in rows %}
-  <tr><td>{{ r.name }}</td><td class="num">{{ r.set_no }}</td>
-      <td class="num">{{ r.reps }}</td><td class="num">{{ r.kg or '—' }}</td></tr>
-  {% endfor %}
-</table>
+<div class="screen">
+  {% if head %}
+    <div class="screen-head">
+      <div class="title">{{ head.date|dow }}</div>
+      <div class="sub text-muted">
+        {% if head.label in SESSION_NAMES %}{{ SESSION_NAMES[head.label] }} &middot; {% endif %}
+        Week {{ head.week_no or '—' }}</div>
+    </div>
+
+    {% if head.notes %}
+      <div class="card blueprint" style="gap:4px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <span class="card-kicker">Note</span>
+        <div style="font-size:13px">{{ head.notes }}</div>
+      </div>
+    {% endif %}
+
+    <table class="table">
+      <thead><tr><th>Exercise</th><th>Set</th><th>Reps</th><th>kg</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td style="font-size:13px">{{ r.name }}</td>
+          <td class="mono">{{ r.set_no }}</td>
+          <td class="mono">{{ r.reps }}</td>
+          <td class="mono">{{ ('%.1f'|format(r.kg)) if r.kg else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="card blueprint">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <span class="text-muted" style="font-size:13px">Session not found.</span>
+    </div>
+  {% endif %}
+
+  <a class="btn btn-secondary btn-block" href="/journal">Back to journal</a>
 </div>
-{% else %}<div class="card"><p class="sub">Session not found.</p></div>{% endif %}
-<a class="btn block" href="/journal">Back to journal</a>
 {% endblock %}

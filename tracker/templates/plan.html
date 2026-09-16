@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Programme{% endblock %}
+{% block body %}
+<div class="screen">
+
+  <div class="screen-head">
+    <div class="title">Programme</div>
+    <div class="sub text-muted">
+      14 Sep &ndash; 6 Dec &middot; the ramp adds exercises, not load &middot; 45 min ceiling</div>
+  </div>
+
+  <table class="table">
+    <thead><tr><th>Block</th><th>Weeks</th><th>Ex</th><th>Sets</th><th>Load</th><th>Time</th></tr></thead>
+    <tbody>
+      {% for b in blocks %}
+      <tr {% if b.current %}class="current"{% endif %}>
+        <td><strong>{{ b.block }}</strong></td>
+        <td class="mono">{{ b.weeks }}</td>
+        <td class="mono">{{ b.exercises }}</td>
+        <td class="mono">{{ b.sets }}</td>
+        <td class="mono">{{ b.load }}</td>
+        <td class="mono">{{ b.time }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div>
+    <h6 class="kicker-accent" style="margin:0 0 8px">The ten &middot; catalogue</h6>
+    <table class="table">
+      <thead><tr><th>Exercise</th><th>Category</th><th>From wk</th><th>Ref kg</th><th>Default</th></tr></thead>
+      <tbody>
+        {% for c in catalogue %}
+        <tr>
+          <td style="font-size:13px">{{ c.name }}</td>
+          <td class="text-muted" style="font-size:12px">{{ c.category }}</td>
+          <td class="mono">{{ c.from_week }}</td>
+          <td class="mono">{{ ('%.1f'|format(c.ref_kg)) if c.ref_kg else '—' }}</td>
+          <td class="mono">{{ c.target_reps }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="text-muted" style="font-size:11px;margin-top:6px">
+      Suggested kg = ref kg &times; the week's load %, rounded to 2.5 kg.
+      Photos: one square image per row.</div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,34 +1,97 @@
-{% extends "base.html" %}{% block title %}Setup{% endblock %}
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
 {% block body %}
-<h1>Setup</h1>
-<p class="sub">Your defaults. The app pre-fills every session from these.
-  <strong>ref kg</strong> is your 100% load — each week multiplies it by that week's percentage.</p>
+<div class="screen" style="gap:16px">
 
-<form method="post">
-  {% for l in lifts %}
-  <div class="card tight">
-    <div class="spread" style="margin-bottom:10px">
-      <strong>{{ l.name }}</strong>
-      <span class="pill">from week {{ l.from_week }}</span>
-    </div>
-    <div class="row" style="flex-wrap:nowrap">
-      <div style="flex:1">
-        <label class="lbl">Default reps</label>
-        <input type="number" name="reps_{{ l.id }}" value="{{ l.default_reps or '' }}">
-      </div>
-      <div style="flex:1">
-        <label class="lbl">Reference kg</label>
-        <input type="number" step="0.5" name="ref_{{ l.id }}" value="{{ l.ref_kg or '' }}"
-               placeholder="bodyweight">
-      </div>
-    </div>
-    <p class="sub" style="margin-top:8px">
-      Photo: {% if l.photo %}<code>{{ l.photo }}</code>{% else %}
-      drop a file in <code>tracker\static\exercises\</code> named
-      <code>{{ l.slug }}.jpg</code>{% endif %}
-    </p>
+  <div class="screen-head">
+    <div class="title">Settings</div>
   </div>
-  {% endfor %}
-  <button type="submit" class="primary block">Save defaults</button>
-</form>
+
+  <div class="card blueprint" style="gap:8px;border-color:var(--color-accent)">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <span class="card-kicker">Garmin sync</span>
+    <div class="spread">
+      <span style="font-size:14px">Last sync</span>
+      <span class="mono" style="font-size:14px">
+        {%- if sync_date -%}
+          {{ sync_date|dow }}{% if sync_age == 0 %} 08:00{% endif %}
+        {%- else -%}never{%- endif -%}
+      </span>
+    </div>
+    <div class="text-muted" style="font-size:12px">
+      Weight, steps, sleep, water, resting HR. The CSV stays the source of truth.</div>
+    {% if sync_age is none or sync_age > 2 %}
+      <div class="text-muted" style="font-size:12px">
+        Stale. Run <code>tracker/garmin_reauth.bat</code> from a terminal &mdash; Garmin asks for
+        the password and an MFA code, so it cannot run unattended.</div>
+    {% endif %}
+  </div>
+
+  {# Targets are constants in app.py and CLAUDE.md. Shown, not editable: there is
+     no settings table behind them, and a control that silently discards input is
+     worse than a readout. #}
+  <div>
+    <h6 class="kicker-accent" style="margin:0 0 8px">Targets</h6>
+    <div class="field-grid">
+      {% for t in targets %}
+      <div class="field">
+        <label>{{ t.label }}</label>
+        <input class="input" value="{{ t.value }}" readonly>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="text-muted" style="font-size:11px;margin-top:6px">
+      Read-only. These live in <code>app.py</code> and <code>CLAUDE.md</code>.</div>
+  </div>
+
+  {# This is the part that does persist, and the Programme screen reads from it. #}
+  <form method="post">
+    <h6 class="kicker-accent" style="margin:0 0 8px">Exercise defaults</h6>
+    <div class="text-muted" style="font-size:11px;margin-bottom:8px">
+      <strong>Ref kg</strong> is your 100% load. Each week multiplies it by that week's
+      percentage and rounds to 2.5 kg.</div>
+
+    {% for l in lifts %}
+    <div class="card blueprint" style="gap:8px;margin-bottom:10px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="spread">
+        <strong style="font-family:var(--font-heading);font-size:17px">{{ l.name }}</strong>
+        <span class="tag tag-neutral">from week {{ l.from_week }}</span>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label for="reps_{{ l.id }}">Default reps</label>
+          <input class="input mono" type="number" id="reps_{{ l.id }}"
+                 name="reps_{{ l.id }}" value="{{ l.default_reps or '' }}">
+        </div>
+        <div class="field">
+          <label for="ref_{{ l.id }}">Reference kg</label>
+          <input class="input mono" type="number" step="0.5" id="ref_{{ l.id }}"
+                 name="ref_{{ l.id }}" value="{{ l.ref_kg or '' }}" placeholder="bodyweight">
+        </div>
+      </div>
+      <div class="text-muted" style="font-size:11px">
+        Photo:
+        {%- if l.photo %} <code>{{ l.photo }}</code>
+        {%- else %} drop a square image at <code>static/exercises/{{ l.slug }}.jpg</code>
+        {%- endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <button class="btn btn-primary btn-block blueprint cta" type="submit">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      SAVE DEFAULTS
+    </button>
+  </form>
+
+  <div class="text-muted foot-note">
+    Sunday check-in: <a href="/checkin">/checkin</a>
+  </div>
+
+  <div class="text-muted foot-note mono">
+    LOCALHOST:5055 &middot; SINGLE USER &middot; POSTGRES "FITNESS"
+  </div>
+
+</div>
 {% endblock %}

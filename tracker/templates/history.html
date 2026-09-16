@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}History{% endblock %}
+{% block body %}
+<h1>Session history</h1>
+<div class="card">
+<table>
+  <tr><th>Date</th><th>Session</th><th>Week</th><th>Sets</th><th>Volume</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><a href="/session/{{ r.id }}" style="color:var(--ok)">{{ r.date }}</a></td>
+    <td>{{ r.label }}</td><td>{{ r.week_no or '-' }}</td>
+    <td>{{ r.sets }}</td><td>{{ r.volume|int }} kg</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="dim">No sessions logged yet.</td></tr>
+  {% endfor %}
+</table>
+</div>
+<p class="dim">Volume is reps multiplied by kg, summed over the session. Use it to check you are progressing.</p>
+{% endblock %}

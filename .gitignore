@@ -9,3 +9,5 @@ tracker/.env
 tracker/_backup_pre_merge/ 
 .idea/ 
 garmin_log.csv 
+tracker/app.log
+tracker/app.err.log

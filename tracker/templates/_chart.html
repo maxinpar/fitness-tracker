@@ -1,38 +1,88 @@
-{# Reusable line chart. Pass: points (list of (label, value)), target (optional), height #}
-{% macro line(points, target=None, h=150, unit='') %}
+{# Charts, drawn to the handoff spec: hairline gridlines, a dashed accent target,
+   a 2px ink polyline for actual, a 4px accent dot on the latest point.
+   Points are (label, value) pairs; the server builds them from daily/plan rows. #}
+
+{% macro _pts(vals, lo, span, w, top, bottom) -%}
+  {%- set out = [] -%}
+  {%- for v in vals -%}
+    {%- set x = (loop.index0 / ((vals|length - 1) or 1) * w) -%}
+    {%- set y = bottom - (v - lo) / span * (bottom - top) -%}
+    {%- set _ = out.append('%.1f,%.1f'|format(x, y)) -%}
+  {%- endfor -%}
+  {{- out|join(' ') -}}
+{%- endmacro %}
+
+{# Home: 120-day weight with the target as a dashed floor. #}
+{% macro weight_line(points, target) %}
   {% if points|length > 1 %}
-  {% set vals = points|map(attribute=1)|map('float')|list %}
-  {% set lo = ([vals|min, target]|min if target else vals|min) - 0.4 %}
-  {% set hi = ([vals|max, target]|max if target else vals|max) + 0.4 %}
-  {% set span = (hi - lo) or 1 %}
-  <svg viewBox="0 0 320 100" preserveAspectRatio="none"
-       style="width:100%;height:{{ h }}px;display:block;overflow:visible">
-    <defs><linearGradient id="g{{ points|length }}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"  stop-color="var(--accent)" stop-opacity=".22"/>
-      <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
-    </linearGradient></defs>
-    {% if target %}
-      {% set ty = 92 - (target - lo) / span * 84 %}
-      <line x1="0" y1="{{ ty }}" x2="320" y2="{{ ty }}" stroke="var(--warn)"
-            stroke-width="1" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
-    {% endif %}
-    {% set pts = [] %}
-    {% for v in vals %}
-      {% set _ = pts.append('%.2f,%.2f'|format(loop.index0 / (vals|length - 1) * 320,
-                                               92 - (v - lo) / span * 84)) %}
-    {% endfor %}
-    <polygon fill="url(#g{{ points|length }})" points="0,100 {{ pts|join(' ') }} 320,100"/>
-    <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"
-              stroke-linecap="round" vector-effect="non-scaling-stroke"
-              points="{{ pts|join(' ') }}"/>
-    <circle r="3.5" fill="var(--accent)" vector-effect="non-scaling-stroke"
-            cx="320" cy="{{ '%.2f'|format(92 - (vals[-1] - lo) / span * 84) }}"/>
-  </svg>
-  <div class="spread" style="margin-top:6px">
-    <span class="sub num">{{ points[0][0] }}</span>
-    <span class="sub num">{{ points[-1][0] }} &middot; {{ vals[-1] }}{{ unit }}</span>
-  </div>
+    {% set vals = points|map(attribute=1)|map('float')|list %}
+    {% set lo = [vals|min, target]|min - 0.4 %}
+    {% set hi = [vals|max, target]|max + 0.4 %}
+    {% set span = (hi - lo) or 1 %}
+    {% set ty = 132 - (target - lo) / span * 116 %}
+    <svg viewBox="0 0 560 140" style="width:100%;height:96px;overflow:visible"
+         role="img" aria-label="Weight over the last 120 days">
+      <line x1="0" y1="{{ '%.1f'|format(ty) }}" x2="560" y2="{{ '%.1f'|format(ty) }}"
+            stroke="var(--color-accent)" stroke-width="1" stroke-dasharray="4 4"/>
+      <polyline fill="none" stroke="var(--color-text)" stroke-width="2"
+                points="{{ _pts(vals, lo, span, 552, 16, 132) }}"/>
+      {% set lastx = 552 %}
+      {% set lasty = 132 - (vals[-1] - lo) / span * 116 %}
+      <circle cx="{{ lastx }}" cy="{{ '%.1f'|format(lasty) }}" r="4" fill="var(--color-accent)"/>
+    </svg>
+    <div class="chart-axis mono">
+      <span>{{ points[0][0]|upper }}</span>
+      <span>{{ points[points|length // 2][0]|upper }}</span>
+      <span>{{ points[-1][0]|upper }}</span>
+      <span>{{ '%.1f'|format(target) }} TARGET</span>
+    </div>
   {% else %}
-  <p class="sub">Not enough data yet.</p>
+    <p class="text-muted" style="font-size:12px;margin:0">Not enough weight data yet.</p>
+  {% endif %}
+{% endmacro %}
+
+{# Progress: actual to date, then the plan's glide path to the final target. #}
+{% macro weight_vs_plan(actual, plan) %}
+  {% if actual|length > 1 %}
+    {% set av = actual|map(attribute=1)|map('float')|list %}
+    {% set pv = plan|map(attribute=1)|map('float')|list %}
+    {% set allv = av + pv %}
+    {% set lo = allv|min - 0.5 %}
+    {% set hi = allv|max + 0.5 %}
+    {% set span = (hi - lo) or 1 %}
+    {# Actual occupies the left share of the width, in proportion to elapsed time. #}
+    {% set split = (av|length / ((av|length + pv|length) or 1) * 560)|round|int %}
+    <svg viewBox="0 0 560 180" style="width:100%;height:170px;overflow:visible"
+         role="img" aria-label="Weight against the plan">
+      <line x1="0" y1="8"   x2="560" y2="8"   stroke="var(--color-divider)" stroke-width="1"/>
+      <line x1="0" y1="92"  x2="560" y2="92"  stroke="var(--color-divider)" stroke-width="1"/>
+      <line x1="0" y1="176" x2="560" y2="176" stroke="var(--color-divider)" stroke-width="1"/>
+      {% if pv|length > 1 %}
+        {% set pout = [] %}
+        {% for v in pv %}
+          {% set x = split + (loop.index0 / ((pv|length - 1) or 1) * (552 - split)) %}
+          {% set y = 176 - (v - lo) / span * 168 %}
+          {% set _ = pout.append('%.1f,%.1f'|format(x, y)) %}
+        {% endfor %}
+        <polyline fill="none" stroke="var(--color-accent)" stroke-width="2"
+                  stroke-dasharray="5 4" points="{{ pout|join(' ') }}"/>
+      {% endif %}
+      {% set aout = [] %}
+      {% for v in av %}
+        {% set x = (loop.index0 / ((av|length - 1) or 1) * split) %}
+        {% set y = 176 - (v - lo) / span * 168 %}
+        {% set _ = aout.append('%.1f,%.1f'|format(x, y)) %}
+      {% endfor %}
+      <polyline fill="none" stroke="var(--color-text)" stroke-width="2"
+                points="{{ aout|join(' ') }}"/>
+      <circle cx="{{ split }}" cy="{{ '%.1f'|format(176 - (av[-1] - lo) / span * 168) }}"
+              r="4" fill="var(--color-accent)"/>
+    </svg>
+    <div class="legend mono">
+      <span style="color:var(--color-text)">&mdash; ACTUAL</span>
+      <span style="color:var(--color-accent-700)">-- PLAN</span>
+    </div>
+  {% else %}
+    <p class="text-muted" style="font-size:12px;margin:0">Trends fill in as weigh-ins land.</p>
   {% endif %}
 {% endmacro %}

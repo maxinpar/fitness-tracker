@@ -1,38 +1,52 @@
-{% extends "base.html" %}{% block title %}Journal{% endblock %}
+{% extends "base.html" %}
+{% block title %}Journal{% endblock %}
 {% block body %}
-<h1>Journal</h1>
-<p class="sub">What you did, and when. Last 60 days.</p>
+<div class="screen" style="gap:12px">
 
-{% for d in days %}
-<div class="card tight">
-  <div class="spread">
-    <strong>{{ d.date|dow }}</strong>
-    {% if d.session_id %}
-      <a href="/session/{{ d.session_id }}" class="pill on">Gym</a>
+  <div class="screen-head">
+    <div class="title">Journal</div>
+    <div class="sub text-muted">Every day. Gym days carry the sets.</div>
+  </div>
+
+  {% for d in days %}
+  <div class="card blueprint day-card{{ ' gym' if d.session_id }}">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="spread">
+      <strong class="day">{{ d.date|dow }}</strong>
+      {% if d.session_id %}
+        <a class="tag tag-accent" href="/session/{{ d.session_id }}"
+           style="text-decoration:none">{{ d.tag }}</a>
+      {% else %}
+        <span class="tag tag-neutral">{{ d.tag }}</span>
+      {% endif %}
+    </div>
+
+    <div class="day-metrics mono">
+      <span>{{ ('%.1f kg'|format(d.weight_kg)) if d.weight_kg else '— kg' }}</span>
+      <span>{{ '{:,}'.format(d.steps) if d.steps else '—' }} steps</span>
+      <span>
+        {%- if d.sleep_mins -%}
+          {{ d.sleep_mins // 60 }}h{{ '%02d'|format(d.sleep_mins % 60) }}
+        {%- else -%}—{%- endif %} sleep</span>
+      <span>{{ ('%.1f L'|format(d.water_ml / 1000)) if d.water_ml else '— L' }}</span>
+      <span>{{ d.resting_hr or '—' }} bpm</span>
+    </div>
+
+    {% if d.detail %}
+      <div class="text-muted day-detail">{{ d.detail }}</div>
     {% endif %}
   </div>
-
-  {% if by_date.get(d.date) %}
-  <table style="margin-top:8px">
-    {% for x in by_date[d.date] %}
-    <tr>
-      <td>{{ x.name }}</td>
-      <td class="num" style="text-align:right;color:var(--mute)">
-        {{ x.sets }} × {{ x.top_reps }}{% if x.top_kg %} · {{ x.top_kg }} kg{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% endif %}
-
-  <div class="row" style="margin-top:10px">
-    {% if d.weight_kg %}<span class="pill">{{ d.weight_kg }} kg</span>{% endif %}
-    {% if d.steps %}<span class="pill">{{ '{:,}'.format(d.steps) }} steps</span>{% endif %}
-    {% if d.sleep_mins %}<span class="pill">{{ d.sleep_mins // 60 }}h{{ '%02d'|format(d.sleep_mins % 60) }} sleep</span>{% endif %}
-    {% if d.water_ml %}<span class="pill">{{ d.water_ml }} ml water</span>{% endif %}
-    {% if d.resting_hr %}<span class="pill">{{ d.resting_hr }} bpm</span>{% endif %}
+  {% else %}
+  <div class="card blueprint">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <span class="text-muted" style="font-size:13px">Nothing recorded yet.</span>
   </div>
+  {% endfor %}
+
+  <div class="text-muted foot-note mono">
+    GARMIN FILLS WEIGHT &middot; STEPS &middot; SLEEP &middot; WATER &middot; RHR AT 08:00.
+    MANUAL EDITS ARE KEPT.
+  </div>
+
 </div>
-{% else %}
-<div class="card"><p class="sub">Nothing recorded yet.</p></div>
-{% endfor %}
 {% endblock %}
