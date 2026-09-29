@@ -6,30 +6,82 @@
       <div class="title">{{ head.date|dow }}</div>
       <div class="sub text-muted">
         {% if head.label in SESSION_NAMES %}{{ SESSION_NAMES[head.label] }} &middot; {% endif %}
-        Week {{ head.week_no or '—' }}</div>
+        Week {{ head.week_no or '—' }}{% if editing %} &middot; editing{% endif %}</div>
     </div>
 
-    {% if head.notes %}
-      <div class="card blueprint" style="gap:4px">
-        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-        <span class="card-kicker">Note</span>
-        <div style="font-size:13px">{{ head.notes }}</div>
-      </div>
-    {% endif %}
+    {% if editing %}
+      {# Blank reps removes that set. The row takes a time as 2:30 or 150. #}
+      <form method="post" action="/session/{{ head.id }}" id="edit-form">
+        <div class="field" style="margin-bottom:14px">
+          <label for="date">Session date</label>
+          <input class="input" type="date" id="date" name="date"
+                 value="{{ head.date.isoformat() }}" max="{{ today }}">
+        </div>
 
-    <table class="table">
-      <thead><tr><th>Exercise</th><th>Set</th><th>Reps</th><th>kg</th></tr></thead>
-      <tbody>
-        {% for r in rows %}
-        <tr>
-          <td style="font-size:13px">{{ r.name }}</td>
-          <td class="mono">{{ r.set_no }}</td>
-          <td class="mono">{{ r.reps }}</td>
-          <td class="mono">{{ ('%.1f'|format(r.kg)) if r.kg else '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        <table class="table session-edit">
+          <thead><tr><th>Exercise</th><th>Set</th><th>Reps</th><th>kg</th></tr></thead>
+          <tbody>
+            {% for r in rows %}
+            {% set row = r.category == 'warmup' %}
+            <tr>
+              <td style="font-size:13px">{{ r.name }}
+                {%- if row %}<br><small class="text-muted mono">metres · time m:ss</small>{% endif %}</td>
+              <td class="mono">{{ r.set_no }}</td>
+              <td><input class="input mono" name="reps_{{ r.id }}" value="{{ r.reps if r.reps is not none }}"
+                         inputmode="numeric" aria-label="{{ r.name }} set {{ r.set_no }} {{ 'metres' if row else 'reps' }}"></td>
+              <td><input class="input mono" name="kg_{{ r.id }}"
+                         value="{{ (mmss(r.kg) if row else '%g'|format(r.kg)) if r.kg is not none }}"
+                         inputmode="decimal" placeholder="{{ 'm:ss' if row else 'kg' }}"
+                         aria-label="{{ r.name }} set {{ r.set_no }} {{ 'time' if row else 'kg' }}"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <p class="text-muted" style="font-size:11px;margin:6px 0 0">
+          Clear the reps to remove a set.</p>
+
+        <div class="field" style="margin-top:14px">
+          <label for="notes">Notes</label>
+          <textarea class="input" id="notes" name="notes" rows="2">{{ head.notes or '' }}</textarea>
+        </div>
+
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:14px">
+          Save changes</button>
+        <a class="btn btn-secondary btn-block" href="/session/{{ head.id }}" style="margin-top:6px">
+          Cancel</a>
+      </form>
+
+      <form method="post" action="/session/{{ head.id }}/delete" style="margin-top:22px"
+            onsubmit="return confirm('Delete this session and all its sets? This cannot be undone.')">
+        <button class="btn btn-ghost btn-block session-delete" type="submit">Delete session</button>
+      </form>
+
+    {% else %}
+      {% if head.notes %}
+        <div class="card blueprint" style="gap:4px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <span class="card-kicker">Note</span>
+          <div style="font-size:13px">{{ head.notes }}</div>
+        </div>
+      {% endif %}
+
+      <table class="table">
+        <thead><tr><th>Exercise</th><th>Set</th><th>Reps</th><th>Load</th></tr></thead>
+        <tbody>
+          {% for r in rows %}
+          {% set row = r.category == 'warmup' %}
+          <tr>
+            <td style="font-size:13px">{{ r.name }}</td>
+            <td class="mono">{{ r.set_no }}</td>
+            <td class="mono">{{ r.reps }}{{ ' m' if row }}</td>
+            <td class="mono">{{ set_value(r.kg, r.category) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <a class="btn btn-primary btn-block" href="/session/{{ head.id }}?edit=1">Edit session</a>
+    {% endif %}
   {% else %}
     <div class="card blueprint">
       <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
@@ -37,6 +89,8 @@
     </div>
   {% endif %}
 
-  <a class="btn btn-secondary btn-block" href="/journal">Back to journal</a>
+  {% if not editing %}
+    <a class="btn btn-secondary btn-block" href="/journal">Back to journal</a>
+  {% endif %}
 </div>
 {% endblock %}

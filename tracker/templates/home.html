@@ -60,7 +60,10 @@
 
     <div class="week-strip">
       {% for d in week_days %}
-      <div class="wd wd-{{ d.status }}{% if d.is_today %} wd-now{% endif %}">
+      {# A missed day links to the log form for that date. #}
+      {% set tag = 'a' if d.status == 'missed' else 'div' %}
+      <{{ tag }} class="wd wd-{{ d.status }}{% if d.is_today %} wd-now{% endif %}"
+        {%- if tag == 'a' %} href="/log?date={{ d.date.isoformat() }}" title="Log this session"{% endif %}>
         <span class="wd-day mono">{{ d.label|upper }}</span>
         <span class="wd-num mono">{{ '%02d'|format(d.day) }}</span>
         <span class="wd-mark">
@@ -70,7 +73,7 @@
           {%- elif d.gym %}&mdash;
           {%- endif -%}
         </span>
-      </div>
+      </{{ tag }}>
       {% endfor %}
     </div>
 

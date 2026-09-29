@@ -20,6 +20,7 @@ load_dotenv(Path(__file__).with_name(".env"))
 app = Flask(__name__)
 TARGET_KG = 72.0
 START_KG = 77.0
+BASELINE_DATE = date(2026, 9, 9)    # First weigh-in of the programme. Charts start here.
 SESSION_NAMES = {"A": "Squat + Pull", "B": "Hinge + Push"}
 PHOTOS = Path(__file__).parent / "static" / "exercises"
 
@@ -69,8 +70,33 @@ def round_load(kg):
     return None if kg is None else round(float(kg) / 2.5) * 2.5
 
 
+def mmss(sec):
+    """150 → 2:30. The row keeps its time in seconds in set_log.kg."""
+    sec = round(float(sec))
+    return f"{sec // 60}:{sec % 60:02d}"
+
+
+def set_value(kg, category):
+    """What set_log.kg means for this exercise: a time for the row, a load otherwise."""
+    if kg is None:
+        return "—"
+    return mmss(kg) if category == "warmup" else f"{float(kg):g} kg"
+
+
+@app.url_defaults
+def static_version(endpoint, values):
+    """Add ?v=<mtime> to static URLs. An edited CSS or JS file gets a new URL,
+    so the browser and Cloudflare cannot serve a stale copy."""
+    if endpoint == "static" and "filename" in values:
+        f = Path(app.static_folder) / values["filename"]
+        if f.is_file():
+            values["v"] = int(f.stat().st_mtime)
+
+
 app.jinja_env.filters["dm"] = dm
 app.jinja_env.filters["dow"] = dow
+app.jinja_env.globals["set_value"] = set_value
+app.jinja_env.globals["mmss"] = mmss
 
 
 # ── data ──────────────────────────────────────────────────────────────────────
@@ -139,8 +165,8 @@ def catalogue(wk, label=None):
             "perSet": PER_SET_ROW if warmup else PER_SET_OTHER,
             "repStep": 100 if warmup else 1,
             "repUnit": "m" if warmup else "reps",
-            "kgStep": 5 if warmup else 2.5,
-            "kgUnit": "sec" if warmup else "kg",
+            "kgStep": 1 if warmup else 0.25,
+            "kgUnit": "m:ss" if warmup else "kg",
             "photo": photo_for(e["name"]),
         })
     return out
@@ -281,9 +307,24 @@ def weigh():
         "home", toast=f"Logged {kg:.1f} kg — {kg - TARGET_KG:.1f} kg to target."))
 
 
+def session_date(raw):
+    """A session date from the form or query string. Today if blank, None if bad or future."""
+    if not raw:
+        return date.today()
+    try:
+        d = date.fromisoformat(raw)
+    except ValueError:
+        return None
+    return d if d <= date.today() else None
+
+
 @app.route("/log")
 def log_form():
-    wk = current_week()
+    on = session_date(request.args.get("date"))
+    if on is None:
+        return redirect(url_for("log_form", toast="Pick today or a past date."))
+    # The session's own week sets the prescription, not the current week.
+    wk = current_week(on)
     label = request.args.get("label") or next_label(wk)
     cat = catalogue(wk, label)
     return render_template(
@@ -291,16 +332,21 @@ def log_form():
         planned=[c for c in cat if c["planned"]],
         catalogue_json=json.dumps(cat),
         est_minutes=est_minutes(cat),
-        label=label, today=date.today().isoformat())
+        label=label, session_wk=wk,
+        session_date=on.isoformat(), today=date.today().isoformat(),
+        is_today=on == date.today())
 
 
 @app.route("/log", methods=["POST"])
 def log_save():
     """log.js posts reps_<id>_<n> / kg_<id>_<n>, the same names the old form used."""
-    wk = current_week()
+    on = session_date(request.form.get("date"))
+    if on is None:
+        return redirect(url_for("log_form", toast="Pick today or a past date."))
+    wk = current_week(on)
     sid = db.execute(
         "insert into gym_session (date, label, week_no, notes) values (%s,%s,%s,%s) returning id",
-        (request.form["date"], request.form.get("label") or "-",
+        (on, request.form.get("label") or "-",
          wk["week_no"] if wk else None, request.form.get("notes") or None), returning=True)
 
     saved = 0
@@ -317,7 +363,7 @@ def log_save():
 
     if not saved:
         db.execute("delete from gym_session where id = %s", (sid,))
-        return redirect(url_for("log_form", toast="Nothing to save."))
+        return redirect(url_for("log_form", date=on.isoformat(), toast="Nothing to save."))
     return redirect(url_for("journal", toast=f"Session saved — {saved} sets."))
 
 
@@ -349,10 +395,33 @@ def programme():
         lo, hi = min(values), max(values)
         return f"{lo}" if lo == hi else f"{lo}–{hi}"
 
+    # What each block prescribes, from the frozen table the Log page uses.
+    # One grid per session label: exercise rows, one kg column per week.
+    presc = db.query("select p.week_no, p.session_label, p.sets, p.reps, p.kg, "
+                     "       e.id, e.name, e.sort_order "
+                     "from prescription p join exercise e on e.id = p.exercise_id "
+                     "order by p.week_no, e.sort_order")
+
+    def detail(weeks):
+        grids = {}
+        for p in presc:
+            if p["week_no"] not in weeks:
+                continue
+            grid = grids.setdefault(p["session_label"], {})
+            ex = grid.setdefault(p["id"], {"name": p["name"], "sort": p["sort_order"], "kg": {}})
+            # Later weeks win, so sets × reps reads as where the block ends up.
+            ex["sets"], ex["reps"] = p["sets"], p["reps"]
+            ex["kg"][p["week_no"]] = float(p["kg"]) if p["kg"] is not None else None
+        return [{"label": lbl,
+                 "rows": sorted(grids[lbl].values(), key=lambda x: x["sort"])}
+                for lbl in sorted(grids)]
+
     out = []
     for b in order:
         g_ = blocks[b]
         out.append({
+            "week_list": g_["weeks"],
+            "detail": detail(g_["weeks"]),
             "block": b,
             "weeks": span(g_["weeks"]),
             "exercises": span(sorted(g_["exercises"])),
@@ -374,13 +443,18 @@ def programme():
 def progress():
     wk = current_week()
 
-    actual = [(dm(r["date"]), float(r["weight_kg"])) for r in db.query(
-        "select date, weight_kg from daily where weight_kg is not null order by date")]
+    # (label, kg, day number). The chart places points by the day number.
+    actual = [(dm(r["date"]), float(r["weight_kg"]), r["date"].toordinal()) for r in db.query(
+        "select date, weight_kg from daily where weight_kg is not null and date >= %s "
+        "order by date", (BASELINE_DATE,))]
 
-    # The glide path: each remaining week's target, ending at 72.0 on 6 Dec.
-    plan_points = [(dm(r["start_date"] + timedelta(days=6)), float(r["target_weight_kg"]))
-                   for r in db.query("select * from plan where week_no >= %s order by week_no",
-                                     (wk["week_no"] if wk else 1,))]
+    # The whole glide path: the baseline weigh-in, then every week's target,
+    # ending at 72.0 on 6 Dec. Past weeks stay on so actual can be read against them.
+    base_kg = actual[0][1] if actual and actual[0][2] == BASELINE_DATE.toordinal() else START_KG
+    plan_points = [(dm(BASELINE_DATE), base_kg, BASELINE_DATE.toordinal())] + [
+        (dm(r["start_date"] + timedelta(days=6)), float(r["target_weight_kg"]),
+         (r["start_date"] + timedelta(days=6)).toordinal())
+        for r in db.query("select * from plan order by week_no")]
 
     # Load actually lifted against what the week asked for.
     load_pct_actual, load_note = None, "No sets logged this week yet."
@@ -415,8 +489,10 @@ def progress():
         else:
             plan = f"from week {e['from_week']}"
         h = history.get(e["id"], [])
-        last = f"{float(h[-1]['kg']):g} kg" if h else "—"
-        best = f"{max(float(x['kg']) for x in h):g} kg" if h else "—"
+        # For the row, best is the fastest time. For a lift, the heaviest load.
+        pick = min if e["category"] == "warmup" else max
+        last = set_value(h[-1]["kg"], e["category"]) if h else "—"
+        best = set_value(pick(float(x["kg"]) for x in h), e["category"]) if h else "—"
         lift_rows.append({"name": e["name"], "plan": plan, "last": last, "best": best})
 
     # Photo weeks. Max copies the files in; the app only lines them up.
@@ -434,51 +510,175 @@ def progress():
         load_note=load_note, lift_rows=lift_rows, photo_weeks=photo_weeks)
 
 
+def describe_sets(sets, category):
+    """[(reps, kg)] → '2 × 10 · 15 kg' when every set matches, else '10 · 12 kg / 10 · 8 kg'.
+    The row reads '500 m · 2:30'."""
+    unit = " m" if category == "warmup" else ""
+
+    def one(reps, kg):
+        if kg is None:
+            load = "—" if category == "warmup" else "bodyweight"
+        else:
+            load = set_value(kg, category)
+        # Non-breaking, so '15 kg' never splits across lines on the phone.
+        return f"{reps}{unit} · {load}".replace(" kg", " kg").replace(" m ", " m ")
+
+    if len(set(sets)) == 1:
+        reps, kg = sets[0]
+        return one(reps, kg) if len(sets) == 1 else f"{len(sets)} × {one(reps, kg)}"
+    return " / ".join(one(r, k) for r, k in sets)
+
+
 @app.route("/journal")
 def journal():
-    days = db.query(
-        "select d.date, d.weight_kg, d.steps, d.sleep_mins, d.water_ml, d.resting_hr, "
-        "       s.id as session_id, s.label, s.notes "
-        "from daily d left join gym_session s on s.date = d.date "
-        "where d.date >= %s order by d.date desc", (date.today() - timedelta(days=60),))
-
-    lifts = db.query(
-        "select s.date, e.name, count(*) as sets, max(l.kg) as top_kg "
-        "from set_log l join gym_session s on s.id = l.session_id "
-        "join exercise e on e.id = l.exercise_id "
-        "group by s.date, e.name, e.sort_order order by s.date desc, e.sort_order")
-    by_date = {}
-    for r in lifts:
-        by_date.setdefault(r["date"], []).append(r)
-
+    """Grouped by Monday-start week, newest first. Sessions get a card with the
+    sets against the plan; every day gets one compact metrics row."""
     today = date.today()
-    for d in days:
-        if d["session_id"]:
-            d["tag"] = SESSION_NAMES.get(d["label"], "Full-body")
-            parts = [f"{x['name']} {x['sets']}×" + (f"{float(x['top_kg']):g} kg"
-                                                    if x["top_kg"] else "bodyweight")
-                     for x in by_date.get(d["date"], [])]
-            if d["notes"]:
-                parts.append(d["notes"])
-            d["detail"] = " · ".join(parts)
-        else:
-            wd = d["date"].weekday()
-            if wd in GYM_DAYS and d["date"] < today:
-                d["tag"], d["detail"] = "Missed", ""
-            elif wd in GOLF_DAYS:
-                d["tag"], d["detail"] = "Weekend", ""
-            else:
-                d["tag"], d["detail"] = "Rest", ""
-    return render_template("journal.html", days=days)
+    # The programme only. Before the baseline there is nothing to train against.
+    since = max(BASELINE_DATE, today - timedelta(days=120))
+
+    daily = {r["date"]: r for r in db.query(
+        "select date, weight_kg, steps, sleep_mins, resting_hr from daily where date >= %s",
+        (since,))}
+    sessions = db.query("select * from gym_session where date >= %s order by date desc, id desc",
+                        (since,))
+    if not daily and not sessions:
+        return render_template("journal.html", weeks=[])
+
+    # Sets, grouped per session then per exercise, in catalogue order.
+    done = {}
+    for r in db.query(
+            "select l.session_id, l.exercise_id, l.reps, l.kg, e.name, e.category "
+            "from set_log l join gym_session s on s.id = l.session_id "
+            "join exercise e on e.id = l.exercise_id "
+            "where s.date >= %s order by e.sort_order, l.set_no", (since,)):
+        ex = done.setdefault(r["session_id"], {}).setdefault(
+            r["exercise_id"], {"name": r["name"], "category": r["category"], "sets": []})
+        ex["sets"].append((r["reps"], float(r["kg"]) if r["kg"] is not None else None))
+
+    # What each (week, label) asked for.
+    asked = {}
+    for p in db.query("select p.*, e.name, e.category, e.sort_order from prescription p "
+                      "join exercise e on e.id = p.exercise_id order by e.sort_order"):
+        asked.setdefault((p["week_no"], p["session_label"]), []).append(p)
+
+    cards = {}
+    for s in sessions:
+        logged = done.get(s["id"], {})
+        plan = {p["exercise_id"]: p for p in asked.get((s["week_no"], s["label"]), [])}
+        rows = []
+        # Logged exercises in catalogue order, then anything planned but not logged.
+        for ex_id, ex in logged.items():
+            p = plan.get(ex_id)
+            plan_kg = float(p["kg"]) if p and p["kg"] is not None else None
+            top = [k for _, k in ex["sets"] if k is not None]
+            vs = None
+            if plan_kg and top and ex["category"] != "warmup":
+                best = max(top)
+                vs = "up" if best > plan_kg else ("down" if best < plan_kg else "on")
+            rows.append({"name": ex["name"], "did": describe_sets(ex["sets"], ex["category"]),
+                         "plan": f"{plan_kg:g}" if plan_kg else "—", "vs": vs})
+        for ex_id, p in plan.items():
+            if ex_id not in logged:
+                rows.append({"name": p["name"], "did": None,
+                             "plan": f"{float(p['kg']):g}" if p["kg"] is not None else "—",
+                             "vs": None})
+        cards.setdefault(s["date"], []).append({
+            "id": s["id"], "date": s["date"], "notes": s["notes"],
+            "tag": SESSION_NAMES.get(s["label"], "Full-body"), "rows": rows})
+
+    # Every calendar day from the first record to today, in Monday-start weeks.
+    first = min(list(daily) + [s["date"] for s in sessions])
+    monday = today - timedelta(days=today.weekday())
+    weeks = []
+    while monday + timedelta(days=6) >= first:
+        wk = current_week(monday)
+        in_plan = wk and wk["start_date"] == monday
+        days = []
+        for i in range(6, -1, -1):
+            d = monday + timedelta(days=i)
+            if d > today or d < first:
+                continue
+            m = daily.get(d) or {}
+            days.append({"date": d, "gym": d in cards,
+                         "weight_kg": m.get("weight_kg"), "steps": m.get("steps"),
+                         "sleep_mins": m.get("sleep_mins"), "resting_hr": m.get("resting_hr")})
+        week_cards = [c for d in sorted(cards, reverse=True)
+                      if monday <= d <= monday + timedelta(days=6) for c in cards[d]]
+        weeks.append({"monday": monday, "plan": wk if in_plan else None,
+                      "cards": week_cards, "days": days})
+        monday -= timedelta(days=7)
+    return render_template("journal.html", weeks=weeks)
 
 
 @app.route("/session/<int:sid>")
 def session_detail(sid):
     head = db.query("select * from gym_session where id = %s", (sid,))
-    rows = db.query("select e.name, l.set_no, l.reps, l.kg from set_log l "
+    rows = db.query("select l.id, e.name, e.category, l.set_no, l.reps, l.kg from set_log l "
                     "join exercise e on e.id = l.exercise_id "
                     "where l.session_id = %s order by e.sort_order, l.set_no", (sid,))
-    return render_template("session.html", head=head[0] if head else None, rows=rows)
+    return render_template("session.html", head=head[0] if head else None, rows=rows,
+                           editing=bool(head) and request.args.get("edit") == "1",
+                           today=date.today().isoformat())
+
+
+def parse_value(raw, category):
+    """A load in kg, or for the row a time as 2:30 or 150 (seconds). None if blank.
+    Raises ValueError on anything else."""
+    raw = raw.strip().replace(",", ".")
+    if not raw:
+        return None
+    if category == "warmup" and ":" in raw:
+        m, s = raw.split(":")
+        return int(m) * 60 + float(s)
+    return float(raw)
+
+
+@app.route("/session/<int:sid>", methods=["POST"])
+def session_save(sid):
+    """Edit a saved session. A set with blank reps is removed."""
+    if not db.query("select 1 from gym_session where id = %s", (sid,)):
+        return redirect(url_for("journal", toast="Session not found."))
+    def back(msg):
+        return redirect(url_for("session_detail", sid=sid, edit=1, toast=msg))
+
+    on = session_date(request.form.get("date"))
+    if on is None:
+        return back("Pick today or a past date.")
+
+    # Validate every set before writing any, so a typo changes nothing.
+    sets = db.query("select l.id, e.name, e.category from set_log l "
+                    "join exercise e on e.id = l.exercise_id where l.session_id = %s", (sid,))
+    changes, drops = [], []
+    for s in sets:
+        reps = request.form.get(f"reps_{s['id']}", "").strip()
+        if not reps:
+            drops.append(s["id"])
+            continue
+        try:
+            changes.append((int(float(reps)),
+                            parse_value(request.form.get(f"kg_{s['id']}", ""), s["category"]),
+                            s["id"]))
+        except ValueError:
+            return back(f"Check the numbers for {s['name']}.")
+    if not changes:
+        return back("Keep at least one set, or delete the session.")
+
+    wk = current_week(on)
+    db.execute("update gym_session set date = %s, week_no = %s, notes = %s where id = %s",
+               (on, wk["week_no"] if wk else None, request.form.get("notes") or None, sid))
+    for reps, kg, set_id in changes:
+        db.execute("update set_log set reps = %s, kg = %s where id = %s", (reps, kg, set_id))
+    for set_id in drops:
+        db.execute("delete from set_log where id = %s", (set_id,))
+    return redirect(url_for("session_detail", sid=sid, toast="Session updated."))
+
+
+@app.route("/session/<int:sid>/delete", methods=["POST"])
+def session_delete(sid):
+    """Remove a session and its sets (set_log cascades)."""
+    db.execute("delete from gym_session where id = %s", (sid,))
+    return redirect(url_for("journal", toast="Session deleted."))
 
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -542,7 +742,23 @@ def checkin():
                            done=sessions_this_week(wk))
 
 
+def _log_to_file():
+    """Send all log output to app.log. Started by services.ps1 under pythonw, which
+    discards stdout, so this file is the only record of a crash."""
+    import logging
+    from logging.handlers import RotatingFileHandler
+
+    handler = RotatingFileHandler(
+        Path(__file__).with_name("app.log"), maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+
 if __name__ == "__main__":
+    _log_to_file()
     # DEBUG IS OFF WHENEVER ACCESS IS CONFIGURED. The Werkzeug debugger hands an
     # interactive Python console to anyone who can reach a traceback; behind a
     # public hostname that is a way in, whatever gate sits in front of it.

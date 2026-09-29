@@ -19,7 +19,7 @@ create table if not exists exercise (
   category      text not null,          -- warmup, physio, strength, core, golf
   target_sets   integer,
   target_reps   text,
-  ref_kg        numeric(5,1),           -- 100% reference load. Null means bodyweight.
+  ref_kg        numeric(6,2),           -- 100% reference load. Null means bodyweight.
   from_week     integer default 1,
   sort_order    integer
 );
@@ -40,7 +40,7 @@ create table if not exists set_log (
   exercise_id integer not null references exercise(id),
   set_no      integer not null,
   reps        integer,
-  kg          numeric(5,1),
+  kg          numeric(6,2),
   rpe         integer,
   unique (session_id, exercise_id, set_no)
 );

@@ -13,17 +13,67 @@
     <thead><tr><th>Block</th><th>Weeks</th><th>Ex</th><th>Sets</th><th>Load</th><th>Time</th></tr></thead>
     <tbody>
       {% for b in blocks %}
-      <tr {% if b.current %}class="current"{% endif %}>
-        <td><strong>{{ b.block }}</strong></td>
+      <tr class="block-row{{ ' current' if b.current }}" tabindex="0" role="button"
+          aria-expanded="{{ 'true' if b.current else 'false' }}" aria-controls="block-{{ loop.index }}">
+        <td><strong>{{ b.block }}</strong> <span class="chev" aria-hidden="true">&#9662;</span></td>
         <td class="mono">{{ b.weeks }}</td>
         <td class="mono">{{ b.exercises }}</td>
         <td class="mono">{{ b.sets }}</td>
         <td class="mono">{{ b.load }}</td>
         <td class="mono">{{ b.time }}</td>
       </tr>
+      <tr class="block-detail" id="block-{{ loop.index }}" {% if not b.current %}hidden{% endif %}>
+        <td colspan="6">
+          {% for grid in b.detail %}
+            {% if grid.label in SESSION_NAMES %}
+              <div class="kicker-accent block-label">Session {{ grid.label }} &middot; {{ SESSION_NAMES[grid.label] }}</div>
+            {% endif %}
+            <table class="table block-grid">
+              <thead><tr>
+                <th>Exercise</th><th>Sets &times; reps</th>
+                {% for w in b.week_list %}<th class="{{ 'now' if wk and w == wk.week_no }}">Wk {{ w }}</th>{% endfor %}
+              </tr></thead>
+              <tbody>
+                {% for ex in grid.rows %}
+                <tr>
+                  <td>{{ ex.name }}</td>
+                  <td class="mono">{{ ex.sets }} &times; {{ ex.reps }}</td>
+                  {% for w in b.week_list %}
+                    {% set has = w in ex.kg %}
+                    <td class="mono{{ ' now' if wk and w == wk.week_no }}">
+                      {%- if not has %}<span class="text-muted">&middot;</span>
+                      {%- elif ex.kg[w] is none %}&mdash;
+                      {%- else %}{{ '%g'|format(ex.kg[w]) }}{% endif -%}
+                    </td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endfor %}
+          <div class="text-muted" style="font-size:11px;margin-top:4px">
+            kg per week. &mdash; no load (row, bodyweight). &middot; not in that week.</div>
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
+  <script>
+  (function () {
+    // Tap a block to open or close what it prescribes.
+    document.querySelectorAll('.block-row').forEach(function (row) {
+      function toggle() {
+        var d = document.getElementById(row.getAttribute('aria-controls'));
+        d.hidden = !d.hidden;
+        row.setAttribute('aria-expanded', String(!d.hidden));
+      }
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+  })();
+  </script>
 
   <div>
     <h6 class="kicker-accent" style="margin:0 0 8px">The ten &middot; catalogue</h6>

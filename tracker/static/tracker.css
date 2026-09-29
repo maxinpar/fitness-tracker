@@ -3,6 +3,10 @@
    templates stay readable. Values come from the handoff — do not invent new ones. */
 
 body { background: var(--color-neutral-200); margin: 0; }
+
+/* The hidden attribute must win over .card { display: flex } and friends,
+   or log.js cannot close the open exercise. */
+[hidden] { display: none !important; }
 a { color: var(--color-accent-700); }
 a:hover { color: var(--color-accent); }
 
@@ -82,6 +86,35 @@ a:hover { color: var(--color-accent); }
   color: var(--color-neutral-600);
 }
 
+/* Weight vs plan. Labels sit in a left gutter; points are HTML over the SVG. */
+.wchart { padding-left: 28px; }
+.wchart-plot { position: relative; height: 170px; }
+.wchart-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wchart-y {
+  position: absolute; left: -28px; width: 22px; transform: translateY(-50%);
+  text-align: right; font-size: 10px; color: var(--color-neutral-600);
+}
+.wchart-x { margin-top: 6px; position: relative; }
+.wchart-now { position: absolute; transform: translateX(-50%); }
+.wchart-pt {
+  position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+}
+/* The visible dot is smaller than the hit area, so taps land on the phone. */
+.wchart-pt::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
+  margin: -3px 0 0 -3px; border-radius: 50%; background: var(--color-text);
+}
+.wchart-pt.plan::after { background: var(--color-bg); border: 1.5px solid var(--color-accent); }
+.wchart-pt.now::after { width: 8px; height: 8px; margin: -4px 0 0 -4px; background: var(--color-accent); }
+.wchart-pt:hover::after, .wchart-pt:focus-visible::after { transform: scale(1.5); }
+.wchart-pt:focus { outline: none; }
+.wchart-tip {
+  position: absolute; transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap;
+  padding: 3px 6px; font-size: 11px; pointer-events: none; z-index: 2;
+  background: var(--color-text); color: var(--color-bg);
+}
+
 .garmin-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--color-divider);
 }
@@ -110,11 +143,18 @@ a:hover { color: var(--color-accent); }
 .setrow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .setrow .slabel { font-size: 12px; width: 22px; color: var(--color-neutral-600); }
 .stepper { flex: 1; display: flex; align-items: stretch; border: 1px solid var(--color-divider); }
-.stepper .btn { border: 0; width: 46px; height: 46px; font-size: 20px; }
+.stepper .btn { border: 0; width: 46px; height: 46px; font-size: 20px;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .stepper .btn.minus { border-right: 1px solid var(--color-divider); }
 .stepper .btn.plus  { border-left: 1px solid var(--color-divider); }
-.stepper .val { flex: 1; display: grid; place-items: center; font-size: 19px; }
+.stepper .val { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 19px; cursor: text; }
 .stepper .val small { font-size: 11px; margin-left: 3px; }
+.stepper .val input {
+  width: auto; min-width: 0; max-width: 5.5em; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: right;
+  border-bottom: 1px dashed var(--color-divider);
+}
+.stepper .val input:focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .setrow .drop { font-size: 18px; width: 28px; }
 
 .active-foot { display: flex; gap: 8px; }
@@ -160,16 +200,58 @@ a:hover { color: var(--color-accent); }
 .photo-grid figure.empty span { color: var(--color-neutral-600); }
 
 /* ── journal ───────────────────────────────────────────────────────────── */
-.day-card { gap: 6px; margin-bottom: 10px; border-left: 2px solid var(--color-divider); }
-.day-card.gym { border-left-color: var(--color-accent); }
-.day-card .day { font-family: var(--font-heading); font-size: 17px; }
-.day-metrics { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
-.day-detail { font-size: 12px; }
+.jweek { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.jweek-head { border-bottom: 1px solid var(--color-divider); padding-bottom: 4px; }
+
+.session-card { gap: 8px; border-left: 2px solid var(--color-accent); }
+.session-card .day { font-family: var(--font-heading); font-size: 18px; }
+.sets-table { font-size: 14px; }
+.sets-table th, .sets-table td { padding: 7px 6px; }
+.sets-table td:first-child { font-weight: 500; }
+.sets-table td.mono { font-size: 13px; }
+.sets-table .plan { color: var(--color-neutral-600); white-space: nowrap; text-align: right; }
+.sets-table th:last-child { text-align: right; }
+.sets-table tr.skipped td { color: var(--color-neutral-500); font-style: italic; }
+.vs { font-size: 10px; }
+.vs.up { color: var(--color-accent-700); }
+.vs.down { color: var(--color-text); }
+.vs.on { color: var(--color-neutral-600); }
+.session-notes {
+  margin: 0; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+  border-left: 2px solid var(--color-divider); background: var(--color-neutral-200);
+}
+
+.day-table { font-size: 12px; }
+.day-table th, .day-table td { padding: 4px 6px; }
+.day-table td:nth-child(n+2), .day-table th:nth-child(n+2) { text-align: right; white-space: nowrap; }
+.day-table td.low { color: var(--color-neutral-500); }
+.day-table tr.is-gym td:first-child { font-weight: 600; }
+.dtag { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; padding: 1px 4px; }
+.dtag.gym { background: var(--color-accent-100); color: var(--color-accent-800); }
 .foot-note { font-size: 11px; }
 
 /* ── programme / settings ──────────────────────────────────────────────── */
 .table td.n, .table td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 .table tr.current { background: color-mix(in srgb, var(--color-accent) 7%, transparent); }
+/* Programme: a block row opens its per-week prescription. */
+.block-row { cursor: pointer; }
+.block-row .chev { display: inline-block; font-size: 10px; color: var(--color-neutral-500); transition: transform .15s; }
+.block-row[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.block-detail > td { padding: 4px 0 14px; background: color-mix(in srgb, var(--color-accent) 4%, transparent); }
+.block-detail:hover { background: none; }
+.block-label { margin: 8px 8px 2px; font-size: 11px; }
+.block-grid { font-size: 12px; }
+.block-grid th, .block-grid td { padding: 5px 8px; }
+.block-grid td:first-child { font-size: 12px; }
+.block-grid td:nth-child(n+3), .block-grid th:nth-child(n+3) { text-align: right; white-space: nowrap; }
+.block-grid .now { color: var(--color-accent-700); font-weight: 600; }
+
+/* Session edit: narrow inputs that fit a phone row. */
+.session-edit td { vertical-align: middle; }
+.session-edit td:nth-child(n+2) { width: 1%; white-space: nowrap; }
+.session-edit .input { width: 58px; padding: 6px; text-align: right; }
+.session-edit small { font-size: 10px; }
+.session-delete { color: var(--color-neutral-600); font-size: 12px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field-grid .input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .btn-pair { display: flex; gap: 8px; }

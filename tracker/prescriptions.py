@@ -25,7 +25,7 @@ create table if not exists prescription (
   sets          integer not null,
   reps          text,                      -- as written, e.g. '8 each'
   default_reps  integer,
-  kg            numeric(5,1),              -- null means bodyweight
+  kg            numeric(6,2),              -- null means bodyweight
   primary key (week_no, session_label, exercise_id)
 );
 """

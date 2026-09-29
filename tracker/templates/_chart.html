@@ -42,42 +42,106 @@
 {% endmacro %}
 
 {# Progress: actual to date, then the plan's glide path to the final target. #}
+{# The SVG stretches to the box (preserveAspectRatio none), so the kg labels
+   and the points are HTML laid over it at percentages. That keeps text and
+   dots crisp and round at any width, and gives each point a hover/tap tip. #}
 {% macro weight_vs_plan(actual, plan) %}
   {% if actual|length > 1 %}
     {% set av = actual|map(attribute=1)|map('float')|list %}
     {% set pv = plan|map(attribute=1)|map('float')|list %}
     {% set allv = av + pv %}
-    {% set lo = allv|min - 0.5 %}
-    {% set hi = allv|max + 0.5 %}
+    {# Whole-kg bounds, so the top and bottom gridlines carry a label. #}
+    {% set lo = (allv|min - 0.3)|round(0, 'floor') %}
+    {% set hi = (allv|max + 0.3)|round(0, 'ceil') %}
     {% set span = (hi - lo) or 1 %}
-    {# Actual occupies the left share of the width, in proportion to elapsed time. #}
-    {% set split = (av|length / ((av|length + pv|length) or 1) * 560)|round|int %}
-    <svg viewBox="0 0 560 180" style="width:100%;height:170px;overflow:visible"
-         role="img" aria-label="Weight against the plan">
-      <line x1="0" y1="8"   x2="560" y2="8"   stroke="var(--color-divider)" stroke-width="1"/>
-      <line x1="0" y1="92"  x2="560" y2="92"  stroke="var(--color-divider)" stroke-width="1"/>
-      <line x1="0" y1="176" x2="560" y2="176" stroke="var(--color-divider)" stroke-width="1"/>
-      {% if pv|length > 1 %}
-        {% set pout = [] %}
-        {% for v in pv %}
-          {% set x = split + (loop.index0 / ((pv|length - 1) or 1) * (552 - split)) %}
-          {% set y = 176 - (v - lo) / span * 168 %}
-          {% set _ = pout.append('%.1f,%.1f'|format(x, y)) %}
-        {% endfor %}
-        <polyline fill="none" stroke="var(--color-accent)" stroke-width="2"
-                  stroke-dasharray="5 4" points="{{ pout|join(' ') }}"/>
-      {% endif %}
-      {% set aout = [] %}
-      {% for v in av %}
-        {% set x = (loop.index0 / ((av|length - 1) or 1) * split) %}
-        {% set y = 176 - (v - lo) / span * 168 %}
-        {% set _ = aout.append('%.1f,%.1f'|format(x, y)) %}
+    {% set step = 1 if span <= 8 else 2 %}
+    {% set ticks = range(lo|int, hi|int + 1, step)|list %}
+    {# x is by date: first weigh-in on the left, the plan's last day on the right. #}
+    {% set d0 = actual[0][2] %}
+    {% set d1 = [actual[-1][2]] + plan|map(attribute=2)|list %}
+    {% set dspan = ((d1|max) - d0) or 1 %}
+    {% set split = (actual[-1][2] - d0) / dspan * 552 %}
+
+    {# Every point, in viewBox units: (x, y, value, label, is_plan, is_now).
+       Plan first, so where the two share a day the actual dot sits on top. #}
+    {% set pts = [] %}
+    {% if pv|length > 1 %}
+      {% for p in plan %}
+        {% set _ = pts.append(((p[2] - d0) / dspan * 552,
+                               176 - (p[1] - lo) / span * 168, p[1], p[0], true, false)) %}
       {% endfor %}
-      <polyline fill="none" stroke="var(--color-text)" stroke-width="2"
-                points="{{ aout|join(' ') }}"/>
-      <circle cx="{{ split }}" cy="{{ '%.1f'|format(176 - (av[-1] - lo) / span * 168) }}"
-              r="4" fill="var(--color-accent)"/>
-    </svg>
+    {% endif %}
+    {% for p in actual %}
+      {% set _ = pts.append(((p[2] - d0) / dspan * 552,
+                             176 - (p[1] - lo) / span * 168, p[1], p[0], false, loop.last)) %}
+    {% endfor %}
+
+    <div class="wchart">
+      <div class="wchart-plot">
+        <svg viewBox="0 0 560 180" preserveAspectRatio="none" role="img"
+             aria-label="Weight against the plan">
+          {% for t in ticks %}
+            {% set y = 176 - (t - lo) / span * 168 %}
+            <line x1="0" y1="{{ '%.1f'|format(y) }}" x2="560" y2="{{ '%.1f'|format(y) }}"
+                  stroke="var(--color-divider)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+          {% endfor %}
+          <line x1="{{ '%.1f'|format(split) }}" y1="0" x2="{{ '%.1f'|format(split) }}" y2="180" stroke="var(--color-divider)"
+                stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>
+          {% if pv|length > 1 %}
+            <polyline fill="none" stroke="var(--color-accent)" stroke-width="2"
+                      stroke-dasharray="5 4" vector-effect="non-scaling-stroke"
+                      points="{% for p in pts if p[4] %}{{ '%.1f,%.1f'|format(p[0], p[1]) }} {% endfor %}"/>
+          {% endif %}
+          <polyline fill="none" stroke="var(--color-text)" stroke-width="2"
+                    vector-effect="non-scaling-stroke"
+                    points="{% for p in pts if not p[4] %}{{ '%.1f,%.1f'|format(p[0], p[1]) }} {% endfor %}"/>
+        </svg>
+
+        {% for t in ticks %}
+          <span class="wchart-y mono"
+                style="top:{{ '%.2f'|format((176 - (t - lo) / span * 168) / 1.8) }}%">{{ t }}</span>
+        {% endfor %}
+
+        {% for p in pts %}
+          <button type="button"
+                  class="wchart-pt{{ ' plan' if p[4] }}{{ ' now' if p[5] }}"
+                  style="left:{{ '%.2f'|format(p[0] / 5.6) }}%;top:{{ '%.2f'|format(p[1] / 1.8) }}%"
+                  data-tip="{{ 'Plan · ' if p[4] }}{{ p[3] }} · {{ '%.1f'|format(p[2]) }} kg"
+                  aria-label="{{ 'Plan, ' if p[4] }}{{ p[3] }}, {{ '%.1f'|format(p[2]) }} kg"></button>
+        {% endfor %}
+        <div class="wchart-tip mono" hidden></div>
+      </div>
+      <div class="chart-axis mono wchart-x">
+        <span>{{ actual[0][0]|upper }}</span>
+        <span class="wchart-now" style="left:{{ '%.2f'|format(split / 5.6) }}%">{{ actual[-1][0]|upper }}</span>
+        {% if plan|length %}<span>{{ plan[-1][0]|upper }}</span>{% endif %}
+      </div>
+    </div>
+    <script>
+    (function () {
+      // One tip per chart. Hover on desktop, tap on the phone.
+      document.querySelectorAll('.wchart-plot').forEach(function (plot) {
+        var tip = plot.querySelector('.wchart-tip');
+        function show(pt) {
+          tip.textContent = pt.dataset.tip;
+          tip.style.left = pt.style.left;
+          tip.style.top = pt.style.top;
+          // Near an edge, anchor the tip inwards so it stays inside the card.
+          var x = parseFloat(pt.style.left);
+          tip.style.transform = x > 80 ? 'translate(-100%, calc(-100% - 10px))'
+                              : x < 20 ? 'translate(0, calc(-100% - 10px))' : '';
+          tip.hidden = false;
+        }
+        plot.querySelectorAll('.wchart-pt').forEach(function (pt) {
+          pt.addEventListener('mouseenter', function () { show(pt); });
+          pt.addEventListener('focus', function () { show(pt); });
+          pt.addEventListener('click', function (e) { e.stopPropagation(); show(pt); });
+          pt.addEventListener('mouseleave', function () { tip.hidden = true; });
+        });
+        document.addEventListener('click', function () { tip.hidden = true; });
+      });
+    })();
+    </script>
     <div class="legend mono">
       <span style="color:var(--color-text)">&mdash; ACTUAL</span>
       <span style="color:var(--color-accent-700)">-- PLAN</span>

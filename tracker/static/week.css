@@ -42,6 +42,8 @@
 /* Missed — stated, not shouted. */
 .wd-missed .wd-num { color: var(--color-neutral-500); }
 .wd-missed .wd-mark { color: var(--color-neutral-500); }
+a.wd-missed { color: inherit; text-decoration: none; }
+a.wd-missed:hover .wd-mark { color: var(--color-accent-700); }
 
 /* Today, whatever else it is. */
 .wd-now { box-shadow: inset 0 0 0 2px var(--color-accent); }

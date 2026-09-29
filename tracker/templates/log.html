@@ -6,8 +6,9 @@
   <div class="log-head">
     <div>
       <div class="title" style="font-family:var(--font-heading);font-weight:600;font-size:26px;line-height:1">
-        Today's session</div>
+        {% if is_today %}Today's session{% else %}Past session{% endif %}</div>
       <div class="text-muted" style="font-size:12px">
+        {% set wk = session_wk %}
         {% if wk %}Week {{ wk.week_no }} &middot; {{ wk.block }} &middot; {{ wk.load_pct }}% load
         {%- else %}Off programme{% endif %}
         &middot; <span id="done-count">0</span> of <span id="ex-count">{{ planned|length }}</span> logged
@@ -17,8 +18,15 @@
   </div>
 
   <form method="post" action="/log" id="session-form">
-    <input type="hidden" name="date" value="{{ today }}">
     <input type="hidden" name="label" value="{{ label or '-' }}">
+
+    {# Changing the date reloads the page, so the plan matches that day's week. #}
+    <div class="field" style="margin-bottom:14px">
+      <label for="session-date">Session date</label>
+      <input class="input" type="date" id="session-date" name="date"
+             value="{{ session_date }}" max="{{ today }}"
+             onchange="location.href='/log?date=' + this.value">
+    </div>
 
     {# JS fills this with reps_<id>_<n> / kg_<id>_<n> just before submit. #}
     <div id="payload" hidden></div>

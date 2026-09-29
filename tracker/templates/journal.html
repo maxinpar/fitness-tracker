@@ -5,37 +5,74 @@
 
   <div class="screen-head">
     <div class="title">Journal</div>
-    <div class="sub text-muted">Every day. Gym days carry the sets.</div>
+    <div class="sub text-muted">What you did in the gym, week by week. Daily numbers below each week.</div>
   </div>
 
-  {% for d in days %}
-  <div class="card blueprint day-card{{ ' gym' if d.session_id }}">
-    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-    <div class="spread">
-      <strong class="day">{{ d.date|dow }}</strong>
-      {% if d.session_id %}
-        <a class="tag tag-accent" href="/session/{{ d.session_id }}"
-           style="text-decoration:none">{{ d.tag }}</a>
-      {% else %}
-        <span class="tag tag-neutral">{{ d.tag }}</span>
-      {% endif %}
+  {% for w in weeks %}
+  <section class="jweek">
+    <div class="jweek-head spread">
+      <h6 class="kicker-accent" style="margin:0">
+        {%- if w.plan %}Week {{ w.plan.week_no }} &middot; {{ w.plan.block }} &middot; {{ w.plan.load_pct }}%
+        {%- else %}Week of {{ w.monday|dm }}{% endif -%}
+      </h6>
+      <span class="mono text-muted" style="font-size:11px">
+        {%- if w.plan %}{{ w.cards|length }} of 3 sessions
+        {%- else %}{{ w.cards|length }} session{{ '' if w.cards|length == 1 else 's' }}{% endif %}</span>
     </div>
 
-    <div class="day-metrics mono">
-      <span>{{ ('%.1f kg'|format(d.weight_kg)) if d.weight_kg else '— kg' }}</span>
-      <span>{{ '{:,}'.format(d.steps) if d.steps else '—' }} steps</span>
-      <span>
-        {%- if d.sleep_mins -%}
-          {{ d.sleep_mins // 60 }}h{{ '%02d'|format(d.sleep_mins % 60) }}
-        {%- else -%}—{%- endif %} sleep</span>
-      <span>{{ ('%.1f L'|format(d.water_ml / 1000)) if d.water_ml else '— L' }}</span>
-      <span>{{ d.resting_hr or '—' }} bpm</span>
-    </div>
+    {# ── gym sessions ─────────────────────────────────────────────────── #}
+    {% for c in w.cards %}
+    <div class="card blueprint session-card">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="spread">
+        <div>
+          <strong class="day">{{ c.date|dow }}</strong>
+          <span class="text-muted" style="font-size:12px">&middot; {{ c.tag }}</span>
+        </div>
+        <a class="btn btn-ghost" href="/session/{{ c.id }}?edit=1" style="font-size:12px">Edit</a>
+      </div>
 
-    {% if d.detail %}
-      <div class="text-muted day-detail">{{ d.detail }}</div>
-    {% endif %}
-  </div>
+      <table class="table sets-table">
+        <thead><tr><th>Exercise</th><th>Done</th><th>Plan</th></tr></thead>
+        <tbody>
+          {% for r in c.rows %}
+          <tr class="{{ 'skipped' if not r.did }}">
+            <td>{{ r.name }}</td>
+            <td class="mono">{{ r.did or 'not done' }}</td>
+            <td class="mono plan">
+              {{- r.plan }}{% if r.plan != '—' %} kg{% endif %}
+              {%- if r.vs == 'up' %} <span class="vs up" title="Above plan">&#9650;</span>
+              {%- elif r.vs == 'down' %} <span class="vs down" title="Below plan">&#9660;</span>
+              {%- elif r.vs == 'on' %} <span class="vs on" title="On plan">&check;</span>{% endif -%}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if c.notes %}<p class="session-notes">{{ c.notes }}</p>{% endif %}
+    </div>
+    {% endfor %}
+
+    {# ── every day, one line each ─────────────────────────────────────── #}
+    <table class="table day-table">
+      <thead><tr><th>Day</th><th>kg</th><th>Steps</th><th>Sleep</th><th>RHR</th></tr></thead>
+      <tbody>
+        {% for d in w.days %}
+        <tr class="{{ 'is-gym' if d.gym }}">
+          <td>{{ d.date|dow }}{% if d.gym %} <span class="dtag gym">gym</span>{% endif %}</td>
+          <td class="mono">{{ '%.1f'|format(d.weight_kg) if d.weight_kg else '—' }}</td>
+          <td class="mono{{ ' low' if d.steps is not none and d.steps < 9000 }}">
+            {{- '{:,}'.format(d.steps) if d.steps is not none else '—' }}</td>
+          <td class="mono">
+            {%- if d.sleep_mins %}{{ d.sleep_mins // 60 }}h{{ '%02d'|format(d.sleep_mins % 60) }}
+            {%- else %}—{% endif %}</td>
+          <td class="mono">{{ d.resting_hr or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
   {% else %}
   <div class="card blueprint">
     <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
@@ -44,8 +81,8 @@
   {% endfor %}
 
   <div class="text-muted foot-note mono">
-    GARMIN FILLS WEIGHT &middot; STEPS &middot; SLEEP &middot; WATER &middot; RHR AT 08:00.
-    MANUAL EDITS ARE KEPT.
+    GARMIN FILLS WEIGHT &middot; STEPS &middot; SLEEP &middot; RHR AT 08:00.
+    STEPS UNDER 9,000 ARE GREYED.
   </div>
 
 </div>
