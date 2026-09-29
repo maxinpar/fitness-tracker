@@ -193,13 +193,13 @@
     wrap.appendChild(label);
 
     wrap.appendChild(stepper(row.reps, e.repUnit,
-      function () { bump(e.id, i, 'reps', -1); },
-      function () { bump(e.id, i, 'reps', 1); },
+      function () { return bump(e.id, i, 'reps', -1); },
+      function () { return bump(e.id, i, 'reps', 1); },
       function (raw) { type(e.id, i, 'reps', raw); }));
 
     wrap.appendChild(stepper(fmt(row.kg, e, 'kg'), e.kgUnit,
-      function () { bump(e.id, i, 'kg', -1); },
-      function () { bump(e.id, i, 'kg', 1); },
+      function () { return bump(e.id, i, 'kg', -1); },
+      function () { return bump(e.id, i, 'kg', 1); },
       function (raw) { type(e.id, i, 'kg', raw); }));
 
     var drop = document.createElement('button');
