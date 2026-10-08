@@ -1,13 +1,13 @@
 """Log the 8 Oct 2026 session (week 4) from paper. Safe to re-run.
 
-3 x 10 Goblet Squat at 15 kg, the rest as the week 4 plan. Split Kneeling Rocks
+3 x 10 Goblet Squat at 16 kg, the rest as the week 4 plan. Split Kneeling Rocks
 was skipped. The row time was not recorded.
 """
 import db
 
 SETS = [  # (exercise, reps, kg) per set
     ("500 m Row",            [(500, None)]),
-    ("Goblet Squat",         [(10, 15)] * 3),
+    ("Goblet Squat",         [(10, 16)] * 3),
     ("Single Arm Row",       [(8, 22.5)] * 3),
     ("Cable Chest Press",    [(10, 12.5)] * 3),
     ("Pallof Press",         [(12, 12.5)] * 3),
