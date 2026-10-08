@@ -138,6 +138,15 @@ def catalogue(wk, label=None):
     pct = wk["load_pct"] if wk else 70
     sets_cap = wk["sets_per_lift"] if wk else 2
 
+    def in_plan(e):
+        """The plan rules, used only when the week has no frozen rows.
+        Mirrors prescriptions.generate so the page is never empty."""
+        if not wk:
+            return False
+        if e["from_week"] > (wk["max_from_week"] or 1):
+            return False
+        return not wk["split"] or e["session_label"] in (label, "BOTH")
+
     out = []
     for e in db.query("select * from exercise order by sort_order"):
         p = presc.get(e["id"])
@@ -156,7 +165,7 @@ def catalogue(wk, label=None):
             "id": e["id"],
             "name": e["name"],
             "category": e["category"],
-            "planned": p is not None,
+            "planned": p is not None if presc else in_plan(e),
             "sets": sets,
             # The row logs distance and time, not reps and weight.
             "reps": reps if reps is not None else (500 if warmup else 10),
